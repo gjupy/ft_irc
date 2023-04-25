@@ -6,24 +6,24 @@
 #include <map>
 
 class Client {
-public:
-    Client(int fd);
+	private:
+		int m_fd;
+		bool m_is_registered;
+		const std::string& m_password;
+		std::string m_nickname;
+		std::string m_username;
 
-    void parse_command(const std::string &command);
+		void handle_pass(const std::string&);
+		void handle_nick(const std::string&);
+		void handle_user(const std::string&);
 
-private:
-    int m_fd;
-    bool m_is_registered;
-    std::string m_nickname;
-    std::string m_username;
-    std::string m_realname;
+		typedef void (Client::*CommandHandler)(const std::string&);
+		std::map <std::string, CommandHandler> m_commands;
+	public:
+		Client(int fd, const std::string& password);
 
-    void handle_pass(const std::string&);
-    void handle_nick(const std::string&);
-    void handle_user(const std::string&);
+		void parse_command(const std::string &command);
 
-	typedef void (Client::*CommandHandler)(const std::string&);
-	std::map <std::string, CommandHandler> m_commands;
 };
 
 #endif
