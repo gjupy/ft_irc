@@ -71,7 +71,7 @@ void Server::accept_client(int server_fd) {
 
 			m_poll_fds.push_back(client_pollfd);
 
-			m_clients[client_fd] = new Client(client_fd); // Use the 'new' keyword to create a Client object
+			m_clients[client_fd] = new Client(client_fd, m_password); // Use the 'new' keyword to create a Client object
 		}
 	}
 }
