@@ -44,20 +44,29 @@ void Client::handle_pass(const std::string &arg) {
 
 	m_is_registered = true;
 	// Send a welcome response
-	std::cout << "Welcome" << std::endl;
+	std::cout << "Client " << m_fd << " registered" << std::endl;
 
 }
 
 void Client::handle_nick(const std::string &arg) {
-    // Handle NICK command
-    // For example, update the client's nickname and return an appropriate response
-	std::cout << "NICK" << std::endl;
-	(void) arg;
+	if (arg.empty()) {
+		std::cout << "Error: NICK command requires an argument." << std::endl;
+		return;
+	}
+
+	m_nickname = arg;
+	std::cout << "Client " << m_fd << " set nickname to: " << m_nickname << std::endl;
 }
 
 void Client::handle_user(const std::string &arg) {
-    // Handle USER command
-    // For example, update the client's username and realname, and return an appropriate response
-	std::cout << "USER" << std::endl;
-	(void) arg;
+	std::istringstream iss(arg);
+	std::string username, realname;
+
+	if (!(iss >> username)) {
+		std::cout << "Error: USER command requires a username" << std::endl;
+		return;
+	}
+	m_username = username;
+
+	std::cout << "Client " << m_fd << " set username to: " << m_username << std::endl;
 }
