@@ -35,13 +35,7 @@ Server::~Server()
 }
 
 int Server::set_nonblocking(int sockfd) {
-    int flags = fcntl(sockfd, F_GETFL, 0);
-    if (flags == -1) {
-        std::cerr << "Error: Unable to get socket flags." << std::endl;
-        return -1;
-    }
-
-    if (fcntl(sockfd, F_SETFL, flags | O_NONBLOCK) == -1) {
+    if (fcntl(sockfd, F_SETFL, O_NONBLOCK) == -1) {
         std::cerr << "Error: Unable to set socket to non-blocking mode." << std::endl;
         return -1;
     }
