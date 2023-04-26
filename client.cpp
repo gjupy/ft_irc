@@ -4,11 +4,16 @@
 #include <sstream>
 #include <iostream>
 
-Client::Client(int fd, const std::string &command) : m_fd(fd), m_is_registered(false), m_password(command)
+Client::Client(int fd, Server& server) : m_fd(fd), m_is_registered(false), _server(server)
 {
 	m_commands["PASS"] = &Client::handle_pass;
 	m_commands["NICK"] = &Client::handle_nick;
 	m_commands["USER"] = &Client::handle_user;
+	// m_commands["JOIN"] = &Client::handle_join;
+	// m_commands["KICK"] = &Client::handle_kick;
+	// m_commands["TOPIC"] = &Client::handle_topic;
+	// m_commands["INVITE"] = &Client::handle_invite;
+	// m_commands["MODE"] = &Client::handle_mode;
 }
 
 void Client::parse_command(const std::string &command) {
@@ -31,12 +36,13 @@ void Client::parse_command(const std::string &command) {
 	std::cout << "Suck a D" << std::endl;
 }
 
-void Client::handle_pass(const std::string &arg) {
-	if (m_is_registered) {
-		return;
-	}
+// MODE (t, i, m, b)
 
-	if (arg != m_password) {
+void Client::handle_pass(const std::string &arg) {
+	if (m_is_registered)
+		return ;
+
+	if (arg != _server.get_password()) {
 		// Send an error response
 		std::cout << "Wrong password" << std::endl;
 		return;
