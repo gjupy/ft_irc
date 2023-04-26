@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   server.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: gjupy <gjupy@student.42.fr>                +#+  +:+       +#+        */
+/*   By: cboubour <cboubour@student.42heilbronn.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/04/26 15:48:02 by gjupy             #+#    #+#             */
-/*   Updated: 2023/04/26 16:34:10 by gjupy            ###   ########.fr       */
+/*   Updated: 2023/04/26 20:52:05 by cboubour         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -113,6 +113,23 @@ void Server::handle_client_data(size_t i) {
 			--i; // Decrement the index to account for the removed element
 		}
 	}
+}
+
+bool Server::send_to_client(const std::string &target_nickname, const std::string &message) {
+	// Check if the target client exists
+	for (std::map<int, Client*>::iterator it = m_clients.begin(); it != m_clients.end(); ++it) {
+		if (it->second->get_nickname() == target_nickname) {
+			int target_fd = it->first;
+			if (send(target_fd, message.c_str(), message.size(), 0) == -1) {
+				std::cerr << "Error: Unable to send message to client " << target_fd << std::endl;
+				return false;
+			}
+			return true;
+		}
+	}
+
+	// Target client not found
+	return false;
 }
 
 void Server::run() {

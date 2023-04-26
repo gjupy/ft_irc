@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   server.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: gjupy <gjupy@student.42.fr>                +#+  +:+       +#+        */
+/*   By: cboubour <cboubour@student.42heilbronn.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/04/26 15:47:19 by gjupy             #+#    #+#             */
-/*   Updated: 2023/04/26 18:42:37 by gjupy            ###   ########.fr       */
+/*   Updated: 2023/04/26 20:42:10 by cboubour         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -42,6 +42,8 @@ class Server {
 		~Server();
 
 		const std::string get_password() const;
+
+		bool send_to_client(const std::string &target_nickname, const std::string &message);
 
 		void run();
 };

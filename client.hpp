@@ -25,11 +25,15 @@ class Client {
 		// void handle_invite(const std::string&);
 		// void handle_mode(const std::string&);
 
+		void handle_privmsg(const std::string& arg);
+
 		typedef void (Client::*CommandHandler)(const std::string&);
 		std::map <std::string, CommandHandler> m_commands;
 
 	public:
 		Client(int fd, Server& server);
+
+		const std::string& get_nickname() const;
 
 		void parse_command(const std::string &command);
 
