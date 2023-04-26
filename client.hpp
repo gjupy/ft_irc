@@ -19,7 +19,8 @@ class Client {
 		void handle_nick(const std::string&);
 		void handle_user(const std::string&);
 
-		// void handle_join(const std::string&);
+		void handle_join(const std::string&);
+		void join_parser(const std::string&);
 		// void handle_kick(const std::string&);
 		// void handle_topic(const std::string&);
 		// void handle_invite(const std::string&);

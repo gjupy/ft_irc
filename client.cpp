@@ -9,11 +9,16 @@ Client::Client(int fd, Server& server) : m_fd(fd), m_is_registered(false), _serv
 	m_commands["PASS"] = &Client::handle_pass;
 	m_commands["NICK"] = &Client::handle_nick;
 	m_commands["USER"] = &Client::handle_user;
-	// m_commands["JOIN"] = &Client::handle_join;
+	m_commands["JOIN"] = &Client::handle_join;
 	// m_commands["KICK"] = &Client::handle_kick;
 	// m_commands["TOPIC"] = &Client::handle_topic;
 	// m_commands["INVITE"] = &Client::handle_invite;
 	// m_commands["MODE"] = &Client::handle_mode;
+}
+
+void Client::handle_join(const std::string& buffer)
+{
+	std::istringstream iss(buffer);
 }
 
 void Client::parse_command(const std::string &command) {
