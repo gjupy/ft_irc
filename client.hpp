@@ -20,7 +20,9 @@ class Client {
 		void handle_user(const std::string&);
 
 		void handle_join(const std::string&);
-		void join_parser(const std::string&);
+		void join_parser(const std::string&, std::map<std::string, std::string> &);
+		void check_channel_status(std::map<std::string, std::string> &);
+
 		// void handle_kick(const std::string&);
 		// void handle_topic(const std::string&);
 		// void handle_invite(const std::string&);

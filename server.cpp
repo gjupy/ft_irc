@@ -6,7 +6,7 @@
 /*   By: gjupy <gjupy@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/04/26 15:48:02 by gjupy             #+#    #+#             */
-/*   Updated: 2023/04/26 16:34:10 by gjupy            ###   ########.fr       */
+/*   Updated: 2023/04/27 16:09:38 by gjupy            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -188,4 +188,9 @@ void Server::run() {
 const std::string	Server::get_password() const
 {
 	return (m_password);
+}
+
+const std::map<std::string, Channel*>	Server::get_channels() const
+{
+	return (m_channel);
 }

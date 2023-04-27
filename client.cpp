@@ -1,8 +1,10 @@
 
 // client.cpp
 #include "client.hpp"
+#include "Channel.hpp"
 #include <sstream>
 #include <iostream>
+#include <exception>
 
 Client::Client(int fd, Server& server) : m_fd(fd), m_is_registered(false), _server(server)
 {
@@ -16,9 +18,69 @@ Client::Client(int fd, Server& server) : m_fd(fd), m_is_registered(false), _serv
 	// m_commands["MODE"] = &Client::handle_mode;
 }
 
+void Client::check_channel_status(std::map<std::string, std::string> &channels_to_keys)
+{
+	std::map<std::string, Channel*> channels = _server.get_channels();
+	for (std::map<std::string, std::string>::iterator it = channels_to_keys.begin(); it != channels_to_keys.end(); ++it)
+	{
+		for (std::map<std::string, Channel*>::iterator it = channels.begin(); it != channels.end(); ++it)
+		{
+			
+		}
+	}
+}
+
+void Client::join_parser(const std::string& buffer, std::map<std::string, std::string> &channels_to_keys)
+{
+	std::string							channel_list, key_list;
+	std::istringstream					iss(buffer);
+	iss >> channel_list >> key_list;
+
+	std::string other;
+	iss >> other;
+	if (!key_list.empty() && !other.empty())
+		throw std::invalid_argument("invalid input format\nusage: <channel> *(\",\" <channel>) [<key> *(\",\" <key>)]");
+	std::istringstream channel_stream(channel_list);
+	std::istringstream key_stream(key_list);
+	std::string channel, key;
+	while (std::getline(channel_stream, channel, ',')) {
+		if (!std::getline(key_stream, key, ','))
+			key = "";
+		channels_to_keys[channel] = key;
+	}
+	std::cout << channels_to_keys.begin()++->first.find(',');
+	for (std::map<std::string, std::string>::iterator it = channels_to_keys.begin(); it != channels_to_keys.end(); ++it)
+	{
+		if (it->first[0] != '#')
+			throw std::invalid_argument("channel names must be prefixed by a '#'");
+		if (it->first.find(',') != std::string::npos || it->first.find((char)7) != std::string::npos)
+		{
+			std::cout << it->first << std::endl;
+			throw std::invalid_argument("channel name shall not contain control G or a comma");
+		}
+		if (it->first.length() > 50)
+			throw std::invalid_argument("channel names are at most fifty (50) charachters long");
+		// maybe try to handle the "channel name shall not contain any spaces"
+	}
+	check_channel_status(channels_to_keys);
+}
+
+/*
+c1 *(,cn) *(key) *(, key)
+keys are assigned to the channels in the order they are written
+*/
 void Client::handle_join(const std::string& buffer)
 {
-	std::istringstream iss(buffer);
+	std::map<std::string, std::string>	channels_to_keys;
+	try
+	{
+		join_parser(buffer, channels_to_keys);
+	}
+	catch(const std::invalid_argument& e)
+	{
+		std::cerr << "Error\n" << e.what() << '\n';
+		return ;
+	}
 }
 
 void Client::parse_command(const std::string &command) {
@@ -32,9 +94,7 @@ void Client::parse_command(const std::string &command) {
 	{
 		if (cmd == it->first)
 		{
-			std::string arg;
-			iss >> arg;
-			(this->*(it->second))(arg);
+			(this->*(it->second))(command.substr(command.find(' ') + 1)); // here I changed because we werent getting the whole buffer
 			return ;
 		}
 	}
