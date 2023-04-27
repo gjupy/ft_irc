@@ -6,7 +6,7 @@
 /*   By: cboubour <cboubour@student.42heilbronn.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/04/26 15:47:19 by gjupy             #+#    #+#             */
-/*   Updated: 2023/04/26 20:42:10 by cboubour         ###   ########.fr       */
+/*   Updated: 2023/04/27 18:53:24 by cboubour         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -28,7 +28,10 @@ class Server {
 	private:
 		int set_nonblocking(int sockfd);
 		void accept_client(int server_fd);
+
 		void handle_client_data(size_t i);
+		void handle_client_disconnection(size_t i);
+		void handle_client_recv_error(size_t i);
 
 		const int								m_port;
 		const std::string						m_password;

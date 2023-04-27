@@ -4,7 +4,7 @@
 #include <sstream>
 #include <iostream>
 
-Client::Client(int fd, Server& server) : m_fd(fd), m_is_registered(false), _server(server), m_nickname(""), m_username("")
+Client::Client(int fd, Server& server) : m_fd(fd), m_is_registered(false), _server(server), m_nickname(""), m_username(""), buffer("")
 {
 	m_commands["PASS"] = &Client::handle_pass;
 	m_commands["NICK"] = &Client::handle_nick;
@@ -20,6 +20,10 @@ Client::Client(int fd, Server& server) : m_fd(fd), m_is_registered(false), _serv
 
 const std::string& Client::get_nickname() const {
 	return m_nickname;
+}
+
+std::string& Client::get_buffer() {
+	return buffer;
 }
 
 
@@ -44,11 +48,8 @@ void Client::parse_command(const std::string &command) {
 	std::cout << "Suck a D" << std::endl;
 }
 
-
-// MODE (t, i, m, b)
-
 void Client::handle_pass(const std::string &args) {
-	if (m_is_registered)
+	if (m_authenticated)
 		return ;
 
 	std::string arg;
@@ -61,15 +62,33 @@ void Client::handle_pass(const std::string &args) {
 		return;
 	}
 
-	m_is_registered = true;
+	m_authenticated = true;
 	// Send a welcome response
 	std::cout << "Client " << m_fd << " registered" << std::endl;
 
 }
 
+void Client::handle_user(const std::string &args) {
+	if (!m_authenticated){
+		std::cout << "Error: USER command requires an authenticated client." << std::endl;
+		return;
+	}
+
+	std::istringstream iss(args);
+	std::string username;
+
+	if (!(iss >> username)) {
+		std::cout << "Error: USER command requires a username" << std::endl;
+		return;
+	}
+	m_username = username;
+
+	std::cout << "Client " << m_fd << " set username to: " << m_username << std::endl;
+}
+
 void Client::handle_nick(const std::string &args) {
-	if (!m_is_registered){
-		std::cout << "Error: NICK command requires a registered client." << std::endl;
+	if (!m_authenticated || m_username.empty()){
+		std::cout << "Error: NICK command requires an authenticated client with username." << std::endl;
 		return ;
 	}
 
@@ -83,31 +102,12 @@ void Client::handle_nick(const std::string &args) {
 	}
 
 	m_nickname = arg;
+	m_is_registered = true;
 	std::cout << "Client " << m_fd << " set nickname to: " << m_nickname << std::endl;
 }
 
-void Client::handle_user(const std::string &args) {
-	if (!m_is_registered){
-		std::cout << "Error: USER command requires a registered client." << std::endl;
-		return ;
-	}
-
-	std::string arg;
-	std::istringstream iss(args);
-	iss >> arg;
-	std::string username, realname;
-
-	if (!(iss >> username)) {
-		std::cout << "Error: USER command requires a username" << std::endl;
-		return;
-	}
-	m_username = username;
-
-	std::cout << "Client " << m_fd << " set username to: " << m_username << std::endl;
-}
-
 void Client::handle_privmsg(const std::string& args) {
-	if (!m_is_registered || m_nickname.empty() || m_username.empty()){
+	if (!m_is_registered){
 		std::cout << "Error: PRIVMSG command requires a fully registered client." << std::endl;
 		return ;
 	}
