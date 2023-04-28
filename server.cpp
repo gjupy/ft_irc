@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   server.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: gjupy <gjupy@student.42.fr>                +#+  +:+       +#+        */
+/*   By: cboubour <cboubour@student.42heilbronn.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/04/26 15:48:02 by gjupy             #+#    #+#             */
-/*   Updated: 2023/04/28 13:10:37 by gjupy            ###   ########.fr       */
+/*   Updated: 2023/04/28 15:33:47 by cboubour         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -101,34 +101,66 @@ void Server::accept_client(int server_fd) {
 }
 
 void Server::handle_client_data(size_t i) {
-	char buffer[1024];
-	ssize_t recv_len = recv(m_poll_fds[i].fd, buffer, sizeof(buffer) - 1, 0);
+	char buf[512];
+	ssize_t recv_len = recv(m_poll_fds[i].fd, buf, sizeof(buf) - 1, 0);
+	buf[recv_len] = '\0';
 
 	if (recv_len > 0) {
-		buffer[recv_len] = '\0';
-		std::cout << "Received from client (" << m_poll_fds[i].fd << "): " << buffer << std::endl;
+		std::string& buffer = m_clients[m_poll_fds[i].fd]->get_buffer();
+		buffer.append(buf);
 
-		// Use Client::parse_command() to handle the command
-		m_clients[m_poll_fds[i].fd]->parse_command(buffer);
+		// Find the newline character
+		size_t newline_pos;
+		while ((newline_pos = buffer.find('\n')) != std::string::npos) {
+			// Extract command and remove it from the buffer
+			std::string command = buffer.substr(0, newline_pos);
+			buffer.erase(0, newline_pos + 1);
+
+			// Use Client::parse_command() to handle the command
+			m_clients[m_poll_fds[i].fd]->parse_command(command);
+		}
 	} else if (recv_len == 0) {
-		// Client has disconnected
+		handle_client_disconnection(i);
+	} else {
+		handle_client_recv_error(i);
+	}
+}
+
+void Server::handle_client_disconnection(size_t i) {
+	delete m_clients[m_poll_fds[i].fd];
+	m_clients.erase(m_poll_fds[i].fd);
+	std::cout << "Client disconnected: " << m_poll_fds[i].fd << std::endl;
+	close(m_poll_fds[i].fd);
+	m_poll_fds.erase(m_poll_fds.begin() + i);
+	--i; // Decrement the index to account for the removed element
+}
+
+void Server::handle_client_recv_error(size_t i) {
+	// No data available; non-blocking recv() returns -1 with errno set to EAGAIN or EWOULDBLOCK
+	if (errno != EAGAIN && errno != EWOULDBLOCK) {
 		delete m_clients[m_poll_fds[i].fd];
 		m_clients.erase(m_poll_fds[i].fd);
-		std::cout << "Client disconnected: " << m_poll_fds[i].fd << std::endl;
+		std::cerr << "Error: Failed to receive data from client (" << m_poll_fds[i].fd << ")." << std::endl;
 		close(m_poll_fds[i].fd);
 		m_poll_fds.erase(m_poll_fds.begin() + i);
 		--i; // Decrement the index to account for the removed element
-	} else {
-		// No data available; non-blocking recv() returns -1 with errno set to EAGAIN or EWOULDBLOCK
-		if (errno != EAGAIN && errno != EWOULDBLOCK) {
-			delete m_clients[m_poll_fds[i].fd];
-			m_clients.erase(m_poll_fds[i].fd);
-			std::cerr << "Error: Failed to receive data from client (" << m_poll_fds[i].fd << ")." << std::endl;
-			close(m_poll_fds[i].fd);
-			m_poll_fds.erase(m_poll_fds.begin() + i);
-			--i; // Decrement the index to account for the removed element
+	}
+}
+
+bool Server::send_to_client(const std::string &target_nickname, const std::string &message) {
+	// Check if the target client exists
+	for (std::map<int, Client*>::iterator it = m_clients.begin(); it != m_clients.end(); ++it) {
+		if (it->second->get_nickname() == target_nickname) {
+			int target_fd = it->first;
+			if (send(target_fd, message.c_str(), message.size(), 0) == -1) {
+				std::cerr << "Error: Unable to send message to client " << target_fd << std::endl;
+				return false;
+			}
+			return true;
 		}
 	}
+	// Target client not found
+	return false;
 }
 
 void Server::run() {
@@ -205,6 +237,7 @@ const std::string	Server::get_password() const
 {
 	return (m_password);
 }
+
 
 const std::map<std::string, Channel*>&	Server::get_channels() const
 {

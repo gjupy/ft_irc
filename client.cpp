@@ -6,7 +6,7 @@
 #include <iostream>
 #include <exception>
 
-Client::Client(int fd, Server& server) : m_fd(fd), m_is_registered(false), _server(server)
+Client::Client(int fd, Server& server) : m_fd(fd), m_is_registered(false), _server(server), m_nickname(""), m_username(""), buffer("")
 {
 	m_commands["PASS"] = &Client::handle_pass;
 	m_commands["NICK"] = &Client::handle_nick;
@@ -16,6 +16,16 @@ Client::Client(int fd, Server& server) : m_fd(fd), m_is_registered(false), _serv
 	// m_commands["TOPIC"] = &Client::handle_topic;
 	// m_commands["INVITE"] = &Client::handle_invite;
 	// m_commands["MODE"] = &Client::handle_mode;
+
+	m_commands["PRIVMSG"] = &Client::handle_privmsg;
+}
+
+const std::string& Client::get_nickname() const {
+	return m_nickname;
+}
+
+std::string& Client::get_buffer() {
+	return buffer;
 }
 
 Client& Client::operator=(const Client& rhs)
@@ -152,8 +162,6 @@ void Client::parse_command(const std::string &command) {
 	std::string cmd;
 	iss >> cmd;
 
-	(void) m_fd;
-
 	for (std::map<std::string, CommandHandler>::iterator it = m_commands.begin(); it != m_commands.end(); ++it)
 	{
 		if (cmd == it->first)
@@ -173,11 +181,13 @@ void Client::parse_command(const std::string &command) {
 	std::cerr << "Error\n" << "invalid input\n";
 }
 
-// MODE (t, i, m, b)
-
-void Client::handle_pass(const std::string &arg) {
-	if (m_is_registered)
+void Client::handle_pass(const std::string &args) {
+	if (m_authenticated)
 		return ;
+
+	std::string arg;
+	std::istringstream iss(args);
+	iss >> arg;
 
 	if (arg != _server.get_password()) {
 		// Send an error response
@@ -185,24 +195,19 @@ void Client::handle_pass(const std::string &arg) {
 		return;
 	}
 
-	m_is_registered = true;
+	m_authenticated = true;
 	// Send a welcome response
 	std::cout << "Client " << m_fd << " registered" << std::endl;
 
 }
 
-void Client::handle_nick(const std::string &arg) {
-	if (arg.empty()) {
-		std::cout << "Error: NICK command requires an argument." << std::endl;
+void Client::handle_user(const std::string &args) {
+	if (!m_authenticated){
+		std::cout << "Error: USER command requires an authenticated client." << std::endl;
 		return;
 	}
 
-	m_nickname = arg;
-	std::cout << "Client " << m_fd << " set nickname to: " << m_nickname << std::endl;
-}
-
-void Client::handle_user(const std::string &arg) {
-	std::istringstream iss(arg);
+	std::istringstream iss(args);
 	std::string username;
 
 	if (!(iss >> username)) {
@@ -212,6 +217,61 @@ void Client::handle_user(const std::string &arg) {
 	m_username = username;
 
 	std::cout << "Client " << m_fd << " set username to: " << m_username << std::endl;
+}
+
+void Client::handle_nick(const std::string &args) {
+	if (!m_authenticated || m_username.empty()){
+		std::cout << "Error: NICK command requires an authenticated client with username." << std::endl;
+		return ;
+	}
+
+	std::string arg;
+	std::istringstream iss(args);
+	iss >> arg;
+
+	if (arg.empty()) {
+		std::cout << "Error: NICK command requires an argument." << std::endl;
+		return;
+	}
+
+	m_nickname = arg;
+	m_is_registered = true;
+	std::cout << "Client " << m_fd << " set nickname to: " << m_nickname << std::endl;
+}
+
+void Client::handle_privmsg(const std::string& args) {
+	if (!m_is_registered){
+		std::cout << "Error: PRIVMSG command requires a fully registered client." << std::endl;
+		return ;
+	}
+
+	std::istringstream iss(args);
+	std::string target_nickname, text;
+
+	if (!(iss >> target_nickname)) {
+		std::cout << "Error: PRIVMSG command requires a target nickname" << std::endl;
+		return;
+	}
+
+	getline(iss, text);
+	if (text.empty() || text[0] != ' ') {
+		std::cout << "Error: PRIVMSG command requires a message text" << std::endl;
+		return;
+	}
+
+	text = text.substr(1); // Remove the space at the beginning
+
+	// Remove the newline character if present
+	if (!text.empty() && text[text.size() - 1] == '\n') {
+		text.resize(text.size() - 1);
+	}
+
+	std::string message = m_nickname + ": " + text + "\n";
+
+	if (!_server.send_to_client(target_nickname, message)) {
+		std::cout << "Error: Failed to send message to " << target_nickname << std::endl;
+	}
+
 }
 
 void handle_invite(const std::string& buffer)
