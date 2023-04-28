@@ -6,7 +6,7 @@
 /*   By: cboubour <cboubour@student.42heilbronn.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/04/26 15:48:02 by gjupy             #+#    #+#             */
-/*   Updated: 2023/04/27 18:57:21 by cboubour         ###   ########.fr       */
+/*   Updated: 2023/04/28 15:33:47 by cboubour         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -46,6 +46,22 @@ Server::~Server()
 	std::map<std::string, Channel*>::iterator ite = m_channel.end();
 	for (std::map<std::string, Channel*>::iterator it = m_channel.begin(); it != ite; it++)
 		delete it->second;
+	m_channel.clear();
+}
+
+Server& Server::operator=(const Server& rhs)
+{
+	m_port = rhs.m_port;
+	m_password = rhs.m_password;
+	m_poll_fds = rhs.m_poll_fds;
+	m_clients = rhs.m_clients;
+	m_channel = rhs.m_channel;
+	return (*this);
+}
+
+Server::Server(const Server& src)
+{
+	*this = src;
 }
 
 int Server::set_nonblocking(int sockfd) {
@@ -220,4 +236,15 @@ void Server::run() {
 const std::string	Server::get_password() const
 {
 	return (m_password);
+}
+
+
+const std::map<std::string, Channel*>&	Server::get_channels() const
+{
+	return (m_channel);
+}
+
+void	Server::add_new_channel(Channel* new_channel)
+{
+	m_channel[new_channel->get_name()] = new_channel;
 }
