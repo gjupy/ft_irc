@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   server.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: cboubour <cboubour@student.42heilbronn.    +#+  +:+       +#+        */
+/*   By: gjupy <gjupy@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/04/26 15:48:02 by gjupy             #+#    #+#             */
-/*   Updated: 2023/04/28 15:33:47 by cboubour         ###   ########.fr       */
+/*   Updated: 2023/04/28 17:06:01 by gjupy            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -247,4 +247,9 @@ const std::map<std::string, Channel*>&	Server::get_channels() const
 void	Server::add_new_channel(Channel* new_channel)
 {
 	m_channel[new_channel->get_name()] = new_channel;
+}
+
+const std::map<int, Client*>&	Server::get_clients() const
+{
+	return (m_clients);
 }

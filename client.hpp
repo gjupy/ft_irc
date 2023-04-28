@@ -5,6 +5,7 @@
 #include <string>
 #include <map>
 #include "Channel.hpp"
+#include <set>
 
 class Channel;
 class Server;
@@ -31,6 +32,10 @@ class Client {
 		void add_user(std::map<std::string, std::string> &);
 
 		void handle_invite(const std::string&);
+		bool valid_nickname(const std::map<int, Client*>&, const std::string&) const;
+		std::map<std::string, Channel*>::const_iterator find_channel(const std::map<std::string, Channel*>&, const std::string& ) const;
+		bool is_operator(std::map<std::string, Channel*>::const_iterator, const std::string&) const;
+		bool is_member(const std::set<Client*>&, const std::string&) const;
 
 		// void handle_kick(const std::string&);
 		// void handle_topic(const std::string&);
@@ -51,9 +56,7 @@ class Client {
 
 		void parse_command(const std::string &command);
 
-		const std::string	get_nickname() const;
 		const std::string	get_username() const;
-
 };
 
 #include "server.hpp"
