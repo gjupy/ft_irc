@@ -28,9 +28,10 @@ class Client {
 		bool is_registered(const Channel* channel);
 		void add_user(std::map<std::string, std::string> &);
 
+		void handle_invite(const std::string&);
+
 		// void handle_kick(const std::string&);
 		// void handle_topic(const std::string&);
-		// void handle_invite(const std::string&);
 		// void handle_mode(const std::string&);
 
 		typedef void (Client::*CommandHandler)(const std::string&);

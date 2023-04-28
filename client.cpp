@@ -24,7 +24,6 @@ Client& Client::operator=(const Client& rhs)
 	m_is_registered = rhs.m_is_registered;
 	m_nickname = rhs.m_nickname;
 	m_username = rhs.m_username;
-	// _server = rhs._server;
 	return (*this);
 }
 
@@ -99,7 +98,7 @@ void Client::join_parser(const std::string& buffer, std::map<std::string, std::s
 	std::string other;
 	iss >> other;
 	if (!key_list.empty() && !other.empty())
-		throw std::invalid_argument("invalid input format\nusage: <channel> *(\",\" <channel>) [<key> *(\",\" <key>)]");
+		throw std::invalid_argument("invalid input format\nusage: JOIN <channel> *(\",\" <channel>) [<key> *(\",\" <key>)]");
 	std::istringstream channel_stream(channel_list);
 	std::istringstream key_stream(key_list);
 	std::string channel, key;
@@ -144,8 +143,7 @@ void Client::handle_join(const std::string& buffer)
 	}
 	catch(const std::invalid_argument& e)
 	{
-		std::cerr << "Error\n" << e.what() << '\n';
-		return ;
+		throw std::invalid_argument(e.what());
 	}
 }
 
@@ -160,11 +158,19 @@ void Client::parse_command(const std::string &command) {
 	{
 		if (cmd == it->first)
 		{
-			(this->*(it->second))(command.substr(command.find(' ') + 1)); // here I changed because we werent getting the whole buffer
-			return ;
+			try
+			{
+				(this->*(it->second))(command.substr(command.find(' ') + 1)); // here I changed because we werent getting the whole buffer
+				return ;
+			}
+			catch(const std::exception& e)
+			{
+				std::cerr << "Error\n" << e.what() << '\n';
+				return ;
+			}
 		}
 	}
-	std::cout << "Suck a D" << std::endl;
+	std::cerr << "Error\n" << "invalid input\n";
 }
 
 // MODE (t, i, m, b)
@@ -197,7 +203,7 @@ void Client::handle_nick(const std::string &arg) {
 
 void Client::handle_user(const std::string &arg) {
 	std::istringstream iss(arg);
-	std::string username, realname;
+	std::string username;
 
 	if (!(iss >> username)) {
 		std::cout << "Error: USER command requires a username" << std::endl;
@@ -206,4 +212,16 @@ void Client::handle_user(const std::string &arg) {
 	m_username = username;
 
 	std::cout << "Client " << m_fd << " set username to: " << m_username << std::endl;
+}
+
+void handle_invite(const std::string& buffer)
+{
+	std::istringstream	iss(buffer);
+	std::string nickname;
+	std::string channel;
+	std::string other;
+
+	iss >> nickname >> channel >> other;
+	if (nickname.empty() || channel.empty() || !other.empty())
+		throw std::invalid_argument("invalid input format\nusage: INVITE <nickname> <channel>");
 }
