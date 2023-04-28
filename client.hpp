@@ -4,7 +4,9 @@
 
 #include <string>
 #include <map>
+#include "Channel.hpp"
 
+class Channel;
 class Server;
 
 class Client {
@@ -21,7 +23,10 @@ class Client {
 
 		void handle_join(const std::string&);
 		void join_parser(const std::string&, std::map<std::string, std::string> &);
-		void check_channel_status(std::map<std::string, std::string> &);
+		bool is_valid_key(Channel* channel, const std::string& input_key);
+		bool is_invited(const Channel* channel);
+		bool is_registered(const Channel* channel);
+		void add_user(std::map<std::string, std::string> &);
 
 		// void handle_kick(const std::string&);
 		// void handle_topic(const std::string&);
@@ -33,8 +38,13 @@ class Client {
 
 	public:
 		Client(int fd, Server& server);
+		Client(const Client& src);
+		Client& operator=(const Client& rhs);
 
 		void parse_command(const std::string &command);
+
+		const std::string	get_nickname() const;
+		const std::string	get_username() const;
 
 };
 

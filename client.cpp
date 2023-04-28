@@ -18,14 +18,74 @@ Client::Client(int fd, Server& server) : m_fd(fd), m_is_registered(false), _serv
 	// m_commands["MODE"] = &Client::handle_mode;
 }
 
-void Client::check_channel_status(std::map<std::string, std::string> &channels_to_keys)
+Client& Client::operator=(const Client& rhs)
+{
+	m_fd = rhs.m_fd;
+	m_is_registered = rhs.m_is_registered;
+	m_nickname = rhs.m_nickname;
+	m_username = rhs.m_username;
+	// _server = rhs._server;
+	return (*this);
+}
+
+Client::Client(const Client& src) : _server(src._server)
+{
+	*this = src;
+}
+
+bool Client::is_valid_key(Channel* channel, const std::string& input_key)
+{
+	if (channel->get_key() == input_key)
+		return (true);
+	return (false);
+}
+
+bool Client::is_invited(const Channel* channel)
+{
+	std::set<Client*> invited = channel->get_invited();
+
+	for(std::set<Client*>::iterator it = invited.begin(); it != invited.end(); ++it)
+	{
+		if ((*it)->m_nickname == m_nickname)
+			return (true);
+	}
+	return (false);
+}
+
+bool Client::is_registered(const Channel* channel)
+{
+	std::set<Client*> registered = channel->get_registered();
+
+	for(std::set<Client*>::iterator it = registered.begin(); it != registered.end(); ++it)
+	{
+		if ((*it)->m_nickname == m_nickname)
+			return (true);
+	}
+	return (false);
+}
+
+void Client::add_user(std::map<std::string, std::string> &channels_to_keys)
 {
 	std::map<std::string, Channel*> channels = _server.get_channels();
+	std::map<std::string, Channel*>::iterator it_channel;
 	for (std::map<std::string, std::string>::iterator it = channels_to_keys.begin(); it != channels_to_keys.end(); ++it)
 	{
-		for (std::map<std::string, Channel*>::iterator it = channels.begin(); it != channels.end(); ++it)
+		if ((it_channel = channels.find(it->first)) != channels.end()) // if channels exists
 		{
-			
+			if (is_registered(it_channel->second))
+				throw std::invalid_argument("you are already registered to channel " + it_channel->first + "\n");
+			if (it_channel->second->get_invite_only() && !is_invited(it_channel->second))
+				throw std::invalid_argument("you are not invited to " + it_channel->first + "\n");
+			if (it_channel->second->get_key_needed() && !is_valid_key(it_channel->second, it->second))
+				throw std::invalid_argument("wrong key for " + it_channel->first + "\n");
+			it_channel->second->set_registered(*this);
+			std::cout << "you are registered to " << it_channel->first << "\n";
+		}
+		else
+		{
+			Channel* new_channel = new Channel(it->first, it->second);
+			new_channel->set_registered(*this);
+			_server.add_new_channel(new_channel);
 		}
 	}
 }
@@ -48,7 +108,6 @@ void Client::join_parser(const std::string& buffer, std::map<std::string, std::s
 			key = "";
 		channels_to_keys[channel] = key;
 	}
-	std::cout << channels_to_keys.begin()++->first.find(',');
 	for (std::map<std::string, std::string>::iterator it = channels_to_keys.begin(); it != channels_to_keys.end(); ++it)
 	{
 		if (it->first[0] != '#')
@@ -62,7 +121,14 @@ void Client::join_parser(const std::string& buffer, std::map<std::string, std::s
 			throw std::invalid_argument("channel names are at most fifty (50) charachters long");
 		// maybe try to handle the "channel name shall not contain any spaces"
 	}
-	check_channel_status(channels_to_keys);
+	try
+	{
+		add_user(channels_to_keys);
+	}
+	catch(const std::invalid_argument& e)
+	{
+		throw std::invalid_argument(e.what());
+	}
 }
 
 /*
