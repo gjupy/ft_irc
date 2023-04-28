@@ -6,7 +6,7 @@
 #include <iostream>
 #include <exception>
 
-Client::Client(int fd, Server& server) : m_fd(fd), m_is_registered(false), _server(server), m_nickname(""), m_username(""), buffer("")
+Client::Client(int fd, Server& server) : m_fd(fd), m_is_registered(false), _server(server), m_nickname(""), m_username(""), m_authenticated(false), buffer("")
 {
 	m_commands["PASS"] = &Client::handle_pass;
 	m_commands["NICK"] = &Client::handle_nick;
@@ -166,16 +166,13 @@ void Client::parse_command(const std::string &command) {
 	{
 		if (cmd == it->first)
 		{
-			try
-			{
-				(this->*(it->second))(command.substr(command.find(' ') + 1)); // here I changed because we werent getting the whole buffer
-				return ;
+			std::string args;
+			std::getline(iss, args); // Get the entire remaining input line
+			if (!args.empty() && args[0] == ' ') {
+				args.erase(0, 1); // Remove the leading space
 			}
-			catch(const std::exception& e)
-			{
-				std::cerr << "Error\n" << e.what() << '\n';
-				return ;
-			}
+			(this->*(it->second))(args);
+			return ;
 		}
 	}
 	std::cerr << "Error\n" << "invalid input\n";
@@ -197,7 +194,7 @@ void Client::handle_pass(const std::string &args) {
 
 	m_authenticated = true;
 	// Send a welcome response
-	std::cout << "Client " << m_fd << " registered" << std::endl;
+	std::cout << "Client " << m_fd << " authenticated" << std::endl;
 
 }
 
@@ -208,14 +205,19 @@ void Client::handle_user(const std::string &args) {
 	}
 
 	std::istringstream iss(args);
-	std::string username;
+	std::string arg;
 
-	if (!(iss >> username)) {
+	if (!(iss >> arg)) {
 		std::cout << "Error: USER command requires a username" << std::endl;
 		return;
 	}
-	m_username = username;
 
+	if (arg[0] == '#') {
+		std::cout << "Error: Nickname cannot start with '#'" << std::endl;
+		return;
+	}
+
+	m_username = arg;
 	std::cout << "Client " << m_fd << " set username to: " << m_username << std::endl;
 }
 
@@ -227,10 +229,14 @@ void Client::handle_nick(const std::string &args) {
 
 	std::string arg;
 	std::istringstream iss(args);
-	iss >> arg;
 
-	if (arg.empty()) {
-		std::cout << "Error: NICK command requires an argument." << std::endl;
+	if (!(iss >> arg)) {
+		std::cout << "Error: NICK command requires a nickname." << std::endl;
+		return;
+	}
+
+	if (arg[0] == '#') {
+		std::cout << "Error: Nickname cannot start with '#'" << std::endl;
 		return;
 	}
 
@@ -245,33 +251,48 @@ void Client::handle_privmsg(const std::string& args) {
 		return ;
 	}
 
+	if (args.empty()) {
+		std::cout << "Error: No recipient for PRIVMSG" << std::endl;
+		return;
+	}
+
+	std::string target, message;
 	std::istringstream iss(args);
-	std::string target_nickname, text;
+	iss >> target;
 
-	if (!(iss >> target_nickname)) {
-		std::cout << "Error: PRIVMSG command requires a target nickname" << std::endl;
+	if (!std::getline(iss, message)) {
+		std::cout << "Error: No text to send" << std::endl;
 		return;
 	}
 
-	getline(iss, text);
-	if (text.empty() || text[0] != ' ') {
-		std::cout << "Error: PRIVMSG command requires a message text" << std::endl;
-		return;
+	const std::map<std::string, Channel*>& channels = _server.get_channels();
+
+	// Check if the target is an existing channel
+	std::map<std::string, Channel*>::const_iterator it = channels.find(target);
+	if (it != channels.end()) {
+		Channel* channel = it->second;
+		const std::set<Client*>& registered_clients = channel->get_registered();
+
+		if (is_registered(channel)) {
+			for (std::set<Client*>::iterator it = registered_clients.begin(); it != registered_clients.end(); ++it) {
+				Client* client = *it;
+				if (client != this) {
+					std::string full_message = m_nickname + " to " + target + ": " + message + "\r\n";
+					send(client->m_fd, full_message.c_str(), full_message.size(), 0);
+				}
+			}
+		} else
+			std::cout << "Error: Cannot send to channel " << target << std::endl;
 	}
-
-	text = text.substr(1); // Remove the space at the beginning
-
-	// Remove the newline character if present
-	if (!text.empty() && text[text.size() - 1] == '\n') {
-		text.resize(text.size() - 1);
+	else {
+		// If the target is not an existing channel, it's a private message to a user or a non-existing channel
+		if (!_server.send_to_client(target, m_nickname + ": " + message + "\r\n")) {
+			if (target[0] == '#')
+				std::cout << "Error: No such channel " << target << std::endl;
+			else
+				std::cout << "Error: No such nickname " << target << std::endl;
+		}
 	}
-
-	std::string message = m_nickname + ": " + text + "\n";
-
-	if (!_server.send_to_client(target_nickname, message)) {
-		std::cout << "Error: Failed to send message to " << target_nickname << std::endl;
-	}
-
 }
 
 void handle_invite(const std::string& buffer)

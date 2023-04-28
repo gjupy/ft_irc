@@ -51,7 +51,6 @@ class Client {
 
 		void parse_command(const std::string &command);
 
-		const std::string	get_nickname() const;
 		const std::string	get_username() const;
 
 };
