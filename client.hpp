@@ -32,10 +32,11 @@ class Client {
 		void add_user(std::map<std::string, std::string> &);
 
 		void handle_invite(const std::string&);
-		bool valid_nickname(const std::map<int, Client*>&, const std::string&) const;
-		std::map<std::string, Channel*>::const_iterator find_channel(const std::map<std::string, Channel*>&, const std::string& ) const;
-		bool is_operator(std::map<std::string, Channel*>::const_iterator, const std::string&) const;
+		Client* find_client(const std::map<int, Client*>&, const std::string&) const;
+		Channel* find_channel(const std::map<std::string, Channel*>&, const std::string& ) const;
+		bool is_operator(Channel&, const std::string&) const;
 		bool is_member(const std::set<Client*>&, const std::string&) const;
+		void invite_client(Client&, Channel&);
 
 		// void handle_kick(const std::string&);
 		// void handle_topic(const std::string&);

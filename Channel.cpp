@@ -134,6 +134,12 @@ void	Channel::set_registered(Client& new_client)
 	_registered.insert(client);
 }
 
+void	Channel::set_invited(Client& new_client)
+{
+	Client* client = new Client(new_client);
+	_registered.insert(client);
+}
+
 const std::set<std::string>	Channel::get_operators() const
 {
 	return (_operators);

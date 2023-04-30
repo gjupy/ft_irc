@@ -95,6 +95,7 @@ void Client::add_user(std::map<std::string, std::string> &channels_to_keys)
 			Channel* new_channel = new Channel(it->first, it->second, m_nickname);
 			new_channel->set_registered(*this);
 			_server.add_new_channel(new_channel);
+			std::cout << "you created channel " << new_channel->get_name() << "\n";
 		}
 	}
 }
@@ -274,29 +275,31 @@ void Client::handle_privmsg(const std::string& args) {
 
 }
 
-bool Client::valid_nickname(const std::map<int, Client*>& clients, const std::string& nickname) const
+Client* Client::find_client(const std::map<int, Client*>& clients, const std::string& nickname) const
 {
 	std::map<int, Client*>::const_iterator it_clients;
 
 	for (it_clients = clients.begin(); it_clients != clients.end(); ++it_clients)
 	{
 		if (nickname == it_clients->second->get_nickname())
-			return (true);
+			return (it_clients->second);
 	}
-	return (false);
+	return (nullptr);
 }
 
-std::map<std::string, Channel*>::const_iterator Client::find_channel(const std::map<std::string, Channel*>& channels, const std::string& channel_name) const
+Channel* Client::find_channel(const std::map<std::string, Channel*>& channels, const std::string& channel_name) const
 {
 	std::map<std::string, Channel*>::const_iterator it_channels;
 
-	return ((it_channels = channels.find(channel_name)));
+	if ((it_channels = channels.find(channel_name)) != channels.end())
+		return (it_channels->second);
+	return (nullptr);
 }
 
-bool Client::is_operator(std::map<std::string, Channel*>::const_iterator input_channel, const std::string& inviter) const
+bool Client::is_operator(Channel& input_channel, const std::string& inviter) const
 {
 	std::set<std::string>::const_iterator			it_operators;
-	const std::set<std::string> operators = input_channel->second->get_operators();
+	const std::set<std::string> operators = input_channel.get_operators();
 
 	if ((it_operators = operators.find(inviter)) != operators.end())
 		return (true);
@@ -316,6 +319,13 @@ bool Client::is_member(const std::set<Client*>& registered, const std::string& n
 	return (false);
 }
 
+void Client::invite_client(Client& client, Channel& channel)
+{
+	channel.set_invited(client);
+	std::cout << "you invited " << client.get_nickname() << " to channel " << channel.get_name() << "\n";
+	// notify the one inviting and the one being invited
+}
+
 void Client::handle_invite(const std::string& buffer)
 {
 	std::istringstream	iss(buffer);
@@ -328,16 +338,17 @@ void Client::handle_invite(const std::string& buffer)
 	iss >> nickname >> channel_name >> other;
 	if (nickname.empty() || channel_name.empty() || !other.empty()) // instead count arguments
 		throw std::invalid_argument("invalid input format\nusage: INVITE <nickname> <channel>");
-	std::map<std::string, Channel*>::const_iterator input_channel = find_channel(channels, channel_name);
-	if (input_channel == channels.end())
+	Channel* input_channel = find_channel(channels, channel_name);
+	if (input_channel == nullptr)
 		throw std::invalid_argument("channel does not exist");
-	if (valid_nickname(clients, nickname) == false)
-		throw std::invalid_argument("nickname does not exist");
-	if (input_channel->second->get_invite_only() && is_operator(input_channel, m_nickname) == false)
+	Client* input_client = find_client(clients, nickname);
+	if (input_client == nullptr)
+		throw std::invalid_argument("user does not exist");
+	if (input_channel->get_invite_only() && is_operator(*input_channel, m_nickname) == false)
 		throw std::invalid_argument("this channel is invite-only: non-channel-operators are not allowed to send invitations");
-	if (is_member(input_channel->second->get_registered(), m_nickname) == false)
+	if (is_member(input_channel->get_registered(), m_nickname) == false)
 		throw std::invalid_argument("non-members are not allowed to send invitations");
-	// CHECK IF NICKNAME IS ALREADY A MEMBER
-	// invite nickname
-	// notify the one inviting and the one being invited
+	if (is_member(input_channel->get_registered(), nickname) == true)
+		throw std::invalid_argument("the user you are trying to invite is already a member");
+	invite_client(*input_client, *input_channel);
 }

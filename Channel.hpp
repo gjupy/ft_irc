@@ -61,6 +61,6 @@ class Channel {
 		void	set_user_limit(bool value);
 
 		void	set_registered(Client&);
-		void	set_invited(Client*);
+		void	set_invited(Client&);
 		void	set_key(const std::string&);
 };
