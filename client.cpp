@@ -284,7 +284,7 @@ Client* Client::find_client(const std::map<int, Client*>& clients, const std::st
 		if (nickname == it_clients->second->get_nickname())
 			return (it_clients->second);
 	}
-	return (nullptr);
+	return (NULL);
 }
 
 Channel* Client::find_channel(const std::map<std::string, Channel*>& channels, const std::string& channel_name) const
@@ -293,7 +293,7 @@ Channel* Client::find_channel(const std::map<std::string, Channel*>& channels, c
 
 	if ((it_channels = channels.find(channel_name)) != channels.end())
 		return (it_channels->second);
-	return (nullptr);
+	return (NULL);
 }
 
 bool Client::is_operator(Channel& input_channel, const std::string& inviter) const
@@ -339,10 +339,10 @@ void Client::handle_invite(const std::string& buffer)
 	if (nickname.empty() || channel_name.empty() || !other.empty()) // instead count arguments
 		throw std::invalid_argument("invalid input format\nusage: INVITE <nickname> <channel>");
 	Channel* input_channel = find_channel(channels, channel_name);
-	if (input_channel == nullptr)
+	if (input_channel == NULL)
 		throw std::invalid_argument("channel does not exist");
 	Client* input_client = find_client(clients, nickname);
-	if (input_client == nullptr)
+	if (input_client == NULL)
 		throw std::invalid_argument("user does not exist");
 	if (input_channel->get_invite_only() && is_operator(*input_channel, m_nickname) == false)
 		throw std::invalid_argument("this channel is invite-only: non-channel-operators are not allowed to send invitations");
