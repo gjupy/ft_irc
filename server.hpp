@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   server.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: cboubour <cboubour@student.42heilbronn.    +#+  +:+       +#+        */
+/*   By: gjupy <gjupy@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/04/26 15:47:19 by gjupy             #+#    #+#             */
-/*   Updated: 2023/04/28 15:34:35 by cboubour         ###   ########.fr       */
+/*   Updated: 2023/04/28 17:05:09 by gjupy            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -46,8 +46,9 @@ class Server {
 		Server& operator=(const Server& rhs);
 		~Server();
 
-		const std::string get_password() const;
-		const std::map<std::string, Channel*>& get_channels() const;
+		const std::string						get_password() const;
+		const std::map<std::string, Channel*>&	get_channels() const;
+		const std::map<int, Client*>&			get_clients() const;
 
 		bool send_to_client(const std::string &target_nickname, const std::string &message);
 

@@ -14,13 +14,14 @@
 #include <exception>
 #include <iostream>
 
-Channel::Channel(const std::string& name, std::string& key)
+Channel::Channel(const std::string& name, std::string& key, const std::string& c_operator)
 				: _name(name), _key(key)
 {
 	if (!key.empty())
 		_key_needed = true;
 	else
 		_key_needed = false;
+	_operators.insert(c_operator);
 	_invite_only = false;
 	_topic_restriciton = false;
 	_privilege = false;
@@ -32,6 +33,9 @@ Channel::~Channel()
 	for (std::set<Client*>::iterator it = _registered.begin(); it != _registered.end(); ++it)
 		delete (*it);
 	_registered.clear();
+	for (std::set<Client*>::iterator it = _invited.begin(); it != _invited.end(); ++it)
+		delete (*it);
+	_invited.clear();
 }
 
 Channel& Channel::operator=(const Channel& rhs)
@@ -39,6 +43,7 @@ Channel& Channel::operator=(const Channel& rhs)
 	_name = rhs._name;
 	_topic = rhs._topic;
 	_key = rhs._key;
+	_operators = rhs._operators;
 	_invited = rhs._invited;
 	_registered = rhs._registered;
 	_invite_only = rhs._invite_only;
@@ -130,4 +135,15 @@ void	Channel::set_registered(Client& new_client)
 {
 	Client* client = new Client(new_client);
 	_registered.insert(client);
+}
+
+void	Channel::set_invited(Client& new_client)
+{
+	Client* client = new Client(new_client);
+	_registered.insert(client);
+}
+
+const std::set<std::string>	Channel::get_operators() const
+{
+	return (_operators);
 }
