@@ -33,6 +33,9 @@ Channel::~Channel()
 	for (std::set<Client*>::iterator it = _registered.begin(); it != _registered.end(); ++it)
 		delete (*it);
 	_registered.clear();
+	for (std::set<Client*>::iterator it = _invited.begin(); it != _invited.end(); ++it)
+		delete (*it);
+	_invited.clear();
 }
 
 Channel& Channel::operator=(const Channel& rhs)

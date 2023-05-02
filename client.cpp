@@ -100,15 +100,22 @@ void Client::add_user(std::map<std::string, std::string> &channels_to_keys)
 	}
 }
 
+bool are_remain_args(std::istringstream& iss)
+{
+	std::string other;
+
+	if ((iss >> other))
+		return (true);
+	return (false);
+}
+
 void Client::join_parser(const std::string& buffer, std::map<std::string, std::string> &channels_to_keys)
 {
 	std::string							channel_list, key_list;
 	std::istringstream					iss(buffer);
 	iss >> channel_list >> key_list;
 
-	std::string other;
-	iss >> other;
-	if (!key_list.empty() && !other.empty()) // instead count arguments
+	if (are_remain_args(iss))
 		throw std::invalid_argument("invalid input format\nusage: JOIN <channel> *(\",\" <channel>) [<key> *(\",\" <key>)]");
 	std::istringstream channel_stream(channel_list);
 	std::istringstream key_stream(key_list);
@@ -120,8 +127,8 @@ void Client::join_parser(const std::string& buffer, std::map<std::string, std::s
 	}
 	for (std::map<std::string, std::string>::iterator it = channels_to_keys.begin(); it != channels_to_keys.end(); ++it)
 	{
-		if (it->first[0] != '#')
-			throw std::invalid_argument("channel names must be prefixed by a '#'");
+		if (it->first[0] != '#' || it->first.length() == 1)
+			throw std::invalid_argument("channel names must be prefixed by a '#' and contain at leats one character");
 		if (it->first.find(',') != std::string::npos || it->first.find((char)7) != std::string::npos)
 		{
 			std::cout << it->first << std::endl;
@@ -129,7 +136,6 @@ void Client::join_parser(const std::string& buffer, std::map<std::string, std::s
 		}
 		if (it->first.length() > 50)
 			throw std::invalid_argument("channel names are at most fifty (50) charachters long");
-		// maybe try to handle the "channel name shall not contain any spaces"
 	}
 	try
 	{
@@ -169,7 +175,7 @@ void Client::parse_command(const std::string &command) {
 		{
 			try
 			{
-				(this->*(it->second))(command.substr(command.find(' ') + 1)); // here I changed because we werent getting the whole buffer
+				(this->*(it->second))(command.substr(command.find(' ') + 1));
 				return ;
 			}
 			catch(const std::exception& e)
@@ -322,8 +328,8 @@ bool Client::is_member(const std::set<Client*>& registered, const std::string& n
 void Client::invite_client(Client& client, Channel& channel)
 {
 	channel.set_invited(client);
-	std::cout << "you invited " << client.get_nickname() << " to channel " << channel.get_name() << "\n";
-	// notify the one inviting and the one being invited
+	handle_privmsg(m_nickname + " you invited " + client.get_nickname() + " to channel " + channel.get_name() + "\n");
+	handle_privmsg(client.m_nickname + " you were invited by " + client.get_nickname() + " to join channel " + channel.get_name() + "\n");
 }
 
 void Client::handle_invite(const std::string& buffer)
@@ -335,8 +341,8 @@ void Client::handle_invite(const std::string& buffer)
 	const std::map<int, Client*>& clients = _server.get_clients();
 	const std::map<std::string, Channel*>& channels = _server.get_channels();
 
-	iss >> nickname >> channel_name >> other;
-	if (nickname.empty() || channel_name.empty() || !other.empty()) // instead count arguments
+	iss >> nickname >> channel_name;
+	if (nickname.empty() || channel_name.empty() || are_remain_args(iss)) // instead count arguments
 		throw std::invalid_argument("invalid input format\nusage: INVITE <nickname> <channel>");
 	Channel* input_channel = find_channel(channels, channel_name);
 	if (input_channel == NULL)
