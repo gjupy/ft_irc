@@ -12,8 +12,8 @@ Client::Client(int fd, Server& server) : m_fd(fd), m_is_registered(false), _serv
 	m_commands["NICK"] = &Client::handle_nick;
 	m_commands["USER"] = &Client::handle_user;
 	m_commands["JOIN"] = &Client::handle_join;
-	// m_commands["KICK"] = &Client::handle_kick;
-	// m_commands["TOPIC"] = &Client::handle_topic;
+	m_commands["KICK"] = &Client::handle_kick;
+	m_commands["TOPIC"] = &Client::handle_topic;
 	m_commands["INVITE"] = &Client::handle_invite;
 	m_commands["MODE"] = &Client::handle_mode;
 	m_commands["PRIVMSG"] = &Client::handle_privmsg;
@@ -103,7 +103,8 @@ bool are_remain_args(std::istringstream& iss)
 {
 	std::string other;
 
-	if ((iss >> other))
+	iss >> other;
+	if (!other.empty())
 		return (true);
 	return (false);
 }
@@ -114,7 +115,7 @@ void Client::join_parser(const std::string& buffer, std::map<std::string, std::s
 	std::istringstream					iss(buffer);
 	iss >> channel_list >> key_list;
 
-	if (are_remain_args(iss))
+	if (channel_list.empty() || are_remain_args(iss))
 		throw std::invalid_argument("invalid input format\nusage: JOIN <channel> *(\",\" <channel>) [<key> *(\",\" <key>)]");
 	std::istringstream channel_stream(channel_list);
 	std::istringstream key_stream(key_list);
@@ -379,10 +380,10 @@ void Client::handle_invite(const std::string& buffer)
 	Client* input_client = find_client(clients, nickname);
 	if (input_client == NULL)
 		throw std::invalid_argument("user does not exist");
-	if (input_channel->get_invite_only() && is_operator(*input_channel, m_nickname) == false)
-		throw std::invalid_argument("this channel is invite-only: non-channel-operators are not allowed to send invitations");
 	if (is_member(input_channel->get_registered(), m_nickname) == false)
 		throw std::invalid_argument("non-members are not allowed to send invitations");
+	if (input_channel->get_invite_only() && is_operator(*input_channel, m_nickname) == false)
+		throw std::invalid_argument("this channel is invite-only: non-channel-operators are not allowed to send invitations");
 	if (is_member(input_channel->get_registered(), nickname))
 		throw std::invalid_argument("the user you are trying to invite is already a member of " + input_channel->get_name());
 	if (is_invited(input_channel, nickname))
@@ -390,9 +391,6 @@ void Client::handle_invite(const std::string& buffer)
 	invite_client(*input_client, *input_channel);
 }
 
-
-
-// <channel> *( ( "-" / "+" ) *<modes> *<modeparams> )
 void Client::handle_mode(const std::string& buffer)
 {
 	const std::map<std::string, Channel*>& channels = _server.get_channels();
@@ -401,7 +399,6 @@ void Client::handle_mode(const std::string& buffer)
 	std::string type;
 	std::string mode;
 	std::string mode_param;
-	// const std::string modes[] = {"i", "t", "k", "o", "l"};
 
 	iss >> channel_name >> type >> mode >> mode_param;
 	if (channel_name.empty() || type.empty() || (type != "-" && type != "+") || mode.empty() || mode.length() != 1) // check If there are more params than it should
@@ -438,7 +435,6 @@ void Client::handle_mode(const std::string& buffer)
 				throw std::invalid_argument("user does not exist");
 			if (is_member(input_channel->get_registered(), mode_param) == false)
 				throw std::invalid_argument("user is not a member of channel " + input_channel->get_name());
-			std::cout << "JO\n";
 			if (type[0] == '+')
 			{
 				if (is_operator(*input_channel, mode_param))
@@ -452,4 +448,80 @@ void Client::handle_mode(const std::string& buffer)
 			throw std::invalid_argument("invalid mode\n");
 			break ;
 	}
+}
+
+void Client::kick_parser(const std::string& buffer, std::map<std::string, std::string> &channels_to_nicks) const
+{
+	std::string							channel_list, key_list;
+	std::istringstream					iss(buffer);
+	iss >> channel_list >> key_list;
+
+	if (channel_list.empty() || are_remain_args(iss))
+		throw std::invalid_argument("invalid input format\nusage: KICK <channel> *(\",\" <channel>) <user>  *(\",\" <user>)");
+	std::istringstream channel_stream(channel_list);
+	std::istringstream nick_stream(key_list);
+	std::string channel, nick;
+	while (std::getline(channel_stream, channel, ',')) {
+		if (!std::getline(nick_stream, nick, ','))
+			throw std::invalid_argument("invalid input format: there MUST be either one channel parameter and one user parameter, or as many channel parameters as there are user parameters");
+		channels_to_nicks[channel] = nick;
+	}
+	if (std::getline(nick_stream, nick, ','))
+		throw std::invalid_argument("invalid input format: there MUST be either one channel parameter and one user parameter, or as many channel parameters as there are user parameters");
+}
+
+void Client::kick_user(std::map<std::string, std::string>& channels_to_nick, const std::map<std::string, Channel*>& channels, const std::map<int, Client*>& clients)
+{
+	for (std::map<std::string, std::string>::iterator it = channels_to_nick.begin(); it != channels_to_nick.end(); ++it)
+	{
+		Channel* input_channel = find_channel(channels, it->first);
+		if (input_channel == NULL)
+			throw std::invalid_argument(it->first + ": channel does not exist");
+		Client* input_client = find_client(clients, it->second);
+		if (input_client == NULL)
+			throw std::invalid_argument(it->second + ": nickname does not exist");
+		if (!is_member(input_channel->get_registered(), it->second))
+			throw std::invalid_argument(it->first + ": " + it->second + " is not a member of this channel");
+		if (!is_operator(*input_channel, m_nickname))
+			throw std::invalid_argument(it->first + ": non-channel-operators are not allowed to use KICK");
+		input_channel->erase_user(it->second);
+	}
+}
+
+void Client::handle_kick(const std::string& buffer)
+{
+	std::map<std::string, std::string> channels_to_nicks;
+	try
+	{
+		kick_parser(buffer, channels_to_nicks);
+	}
+	catch(const std::invalid_argument& e)
+	{
+		throw std::invalid_argument(e.what());
+	}
+	const std::map<std::string, Channel*>& channels = _server.get_channels();
+	const std::map<int, Client*>& clients = _server.get_clients();
+	kick_user(channels_to_nicks, channels, clients);
+}
+
+void Client::handle_topic(const std::string& buffer)
+{
+	std::string							channel_name, topic_name;
+	std::istringstream					iss(buffer);
+	iss >> channel_name;
+
+	if (channel_name.empty())
+		throw std::invalid_argument("invalid input format\nusage: TOPIC <channel> [<topic>]");
+	const std::map<std::string, Channel*>& channels = _server.get_channels();
+	Channel* input_channel = find_channel(channels, channel_name);
+	if (input_channel == NULL)
+		throw std::invalid_argument(channel_name + ": channel does not exist");
+	if (input_channel->get_topic_restriciton() && !is_operator(*input_channel, m_nickname))
+		throw std::invalid_argument("topic-restriction channel: non-channel-operators are not allowed to use TOPIC");
+	if (!getline(iss, topic_name, ' '))
+		_server.send_to_client(m_nickname, input_channel->get_topic() + "\n");
+	else
+		input_channel->set_topic(topic_name);
+	// handle if there are more args than it should
+	// is not working
 }

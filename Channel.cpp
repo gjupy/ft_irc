@@ -121,6 +121,16 @@ const std::string& Channel::get_name() const
 	return (_name);
 }
 
+const std::string& Channel::get_topic() const
+{
+	return (_topic);
+}
+
+void Channel::set_topic(const std::string& topic)
+{
+	_topic = topic;
+}
+
 void	Channel::set_registered(Client& new_client)
 {
 	Client* client = new Client(new_client);
@@ -133,7 +143,7 @@ void	Channel::set_invited(Client& new_client)
 	_invited.insert(client);
 }
 
-void Channel::set_operator(std::string& some_operator, int action)
+void Channel::set_operator(const std::string& some_operator, int action)
 {
 	std::set<std::string>::iterator it_operators = _operators.find(some_operator);
 	if (action == give)
@@ -153,4 +163,27 @@ void Channel::set_operator(std::string& some_operator, int action)
 const std::set<std::string>	Channel::get_operators() const
 {
 	return (_operators);
+}
+
+void	Channel::erase_user(const std::string& nickname)
+{
+	for (std::set<Client*>::iterator it = _registered.begin(); it != _registered.end(); ++it)
+	{
+		if ((*it)->get_nickname() == nickname)
+		{
+			delete(*it);
+			_registered.erase(it);
+			break ;
+		}
+	}
+	for (std::set<Client*>::iterator it = _invited.begin(); it != _invited.end(); ++it)
+	{
+		if ((*it)->get_nickname() == nickname)
+		{
+			delete(*it);
+			_invited.erase(it);
+			break ;
+		}
+	}
+	set_operator(nickname, take);
 }

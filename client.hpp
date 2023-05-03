@@ -40,8 +40,11 @@ class Client {
 
 		void handle_mode(const std::string&);
 
-		// void handle_kick(const std::string&);
-		// void handle_topic(const std::string&);
+		void handle_kick(const std::string&);
+		void kick_parser(const std::string&, std::map<std::string, std::string>&) const;
+		void kick_user(std::map<std::string, std::string>&, const std::map<std::string, Channel*>&, const std::map<int, Client*>&);
+
+		void handle_topic(const std::string&);
 
 		void handle_privmsg(const std::string& arg);
 

@@ -6,7 +6,7 @@
 /*   By: gjupy <gjupy@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/04/26 15:47:56 by gjupy             #+#    #+#             */
-/*   Updated: 2023/05/03 12:27:19 by gjupy            ###   ########.fr       */
+/*   Updated: 2023/05/03 18:21:47 by gjupy            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -55,15 +55,19 @@ class Channel {
 		const std::set<Client*>&			get_registered() const;
 		const std::string&					get_key() const;
 		const std::string&					get_name() const;
+		const std::string&					get_topic() const;
 		const std::set<std::string>			get_operators() const;
 
 		void	set_invite_only(bool value);
 		void	set_topic_restriciton(bool value);
 		void	set_key_needed(bool value);
-		void	set_operator(std::string&, int);
+		void	set_operator(const std::string&, int);
 		void	set_user_limit(bool value);
 
 		void	set_registered(Client&);
 		void	set_invited(Client&);
 		void	set_key(const std::string&);
+		void	set_topic(const std::string&);
+
+		void	erase_user(const std::string& nickname);
 };
