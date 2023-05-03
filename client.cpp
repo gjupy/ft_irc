@@ -172,22 +172,22 @@ void Client::parse_command(const std::string &command) {
 
 			std::string args;
 			std::getline(iss, args); // Get the entire remaining input line
-			if (!args.empty() && args[0] == ' ') {
+			if (!args.empty() && args[0] == ' ')
 				args.erase(0, 1); // Remove the leading space
 
-/*			try
+			try
 			{
-				(this->*(it->second))(command.substr(command.find(' ') + 1));
+				(this->*(it->second))(args);
+				// (this->*(it->second))(command.substr(command.find(' ') + 1));
 				return ;
 			}
 			catch(const std::exception& e)
 			{
 				std::cerr << "Error\n" << e.what() << '\n';
-				return ; */
-
+				return ;
 			}
-			(this->*(it->second))(args);
-			return ;
+			// (this->*(it->second))(args);
+			// return ;
 		}
 	}
 	std::cerr << "Error\n" << "invalid input\n";
@@ -196,7 +196,7 @@ void Client::parse_command(const std::string &command) {
 void Client::handle_pass(const std::string &args) {
 	if (m_authenticated)
 		return ;
-
+	std::cout << "args: " << args << std::endl;
 	std::string arg;
 	std::istringstream iss(args);
 	iss >> arg;
@@ -218,7 +218,7 @@ void Client::handle_user(const std::string &args) {
 		std::cout << "Error: USER command requires an authenticated client." << std::endl;
 		return;
 	}
-
+	std::cout << "args: " << args << std::endl;
 	std::istringstream iss(args);
 	std::string arg;
 
@@ -241,7 +241,7 @@ void Client::handle_nick(const std::string &args) {
 		std::cout << "Error: NICK command requires an authenticated client with username." << std::endl;
 		return ;
 	}
-
+	std::cout << "args: " << args << std::endl;
 	std::string arg;
 	std::istringstream iss(args);
 
@@ -265,6 +265,8 @@ void Client::handle_privmsg(const std::string& args) {
 		std::cout << "Error: PRIVMSG command requires a fully registered client." << std::endl;
 		return ;
 	}
+
+	std::cout << "args: " << args << std::endl;
 
 	if (args.empty()) {
 		std::cout << "Error: No recipient for PRIVMSG" << std::endl;
@@ -356,8 +358,8 @@ bool Client::is_member(const std::set<Client*>& registered, const std::string& n
 void Client::invite_client(Client& client, Channel& channel)
 {
 	channel.set_invited(client);
-	handle_privmsg(m_nickname + " you invited " + client.get_nickname() + " to channel " + channel.get_name() + "\n");
-	handle_privmsg(client.m_nickname + " you were invited by " + client.get_nickname() + " to join channel " + channel.get_name() + "\n");
+	_server.send_to_client(m_nickname, "you invited " + client.get_nickname() + " to channel " + channel.get_name() + "\n");
+	_server.send_to_client(client.m_nickname, "you were invited by " + client.get_nickname() + " to join channel " + channel.get_name() + "\n");
 }
 
 void Client::handle_invite(const std::string& buffer)
