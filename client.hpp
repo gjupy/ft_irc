@@ -38,9 +38,10 @@ class Client {
 		bool is_member(const std::set<Client*>&, const std::string&) const;
 		void invite_client(Client&, Channel&);
 
+		void handle_mode(const std::string&);
+
 		// void handle_kick(const std::string&);
 		// void handle_topic(const std::string&);
-		// void handle_mode(const std::string&);
 
 		void handle_privmsg(const std::string& arg);
 

@@ -15,8 +15,7 @@ Client::Client(int fd, Server& server) : m_fd(fd), m_is_registered(false), _serv
 	// m_commands["KICK"] = &Client::handle_kick;
 	// m_commands["TOPIC"] = &Client::handle_topic;
 	m_commands["INVITE"] = &Client::handle_invite;
-	// m_commands["MODE"] = &Client::handle_mode;
-
+	m_commands["MODE"] = &Client::handle_mode;
 	m_commands["PRIVMSG"] = &Client::handle_privmsg;
 }
 
@@ -84,7 +83,7 @@ void Client::add_user(std::map<std::string, std::string> &channels_to_keys)
 			if (is_registered(it_channel->second))
 				throw std::invalid_argument("you are already registered to channel " + it_channel->first + "\n");
 			if (it_channel->second->get_invite_only() && !is_invited(it_channel->second))
-				throw std::invalid_argument("you are not invited to " + it_channel->first + "\n");
+				throw std::invalid_argument("invite-only channel: you are not invited to " + it_channel->first + "\n");
 			if (it_channel->second->get_key_needed() && !is_valid_key(it_channel->second, it->second))
 				throw std::invalid_argument("wrong key for " + it_channel->first + "\n");
 			it_channel->second->set_registered(*this);
@@ -130,10 +129,7 @@ void Client::join_parser(const std::string& buffer, std::map<std::string, std::s
 		if (it->first[0] != '#' || it->first.length() == 1)
 			throw std::invalid_argument("channel names must be prefixed by a '#' and contain at leats one character");
 		if (it->first.find(',') != std::string::npos || it->first.find((char)7) != std::string::npos)
-		{
-			std::cout << it->first << std::endl;
 			throw std::invalid_argument("channel name shall not contain control G or a comma");
-		}
 		if (it->first.length() > 50)
 			throw std::invalid_argument("channel names are at most fifty (50) charachters long");
 	}
@@ -318,7 +314,6 @@ bool Client::is_member(const std::set<Client*>& registered, const std::string& n
 
 	for (std::set<Client*>::const_iterator it = registered.begin(); it != registered.end(); ++it)
 	{
-		std::cout << (*it)->get_nickname() << "\n";
 		if (nickname == (*it)->get_nickname())
 			return (true);
 	}
@@ -337,16 +332,15 @@ void Client::handle_invite(const std::string& buffer)
 	std::istringstream	iss(buffer);
 	std::string nickname;
 	std::string channel_name;
-	std::string other;
-	const std::map<int, Client*>& clients = _server.get_clients();
-	const std::map<std::string, Channel*>& channels = _server.get_channels();
 
 	iss >> nickname >> channel_name;
-	if (nickname.empty() || channel_name.empty() || are_remain_args(iss)) // instead count arguments
+	if (nickname.empty() || channel_name.empty() || are_remain_args(iss))
 		throw std::invalid_argument("invalid input format\nusage: INVITE <nickname> <channel>");
+	const std::map<std::string, Channel*>& channels = _server.get_channels();
 	Channel* input_channel = find_channel(channels, channel_name);
 	if (input_channel == NULL)
 		throw std::invalid_argument("channel does not exist");
+	const std::map<int, Client*>& clients = _server.get_clients();
 	Client* input_client = find_client(clients, nickname);
 	if (input_client == NULL)
 		throw std::invalid_argument("user does not exist");
@@ -354,7 +348,72 @@ void Client::handle_invite(const std::string& buffer)
 		throw std::invalid_argument("this channel is invite-only: non-channel-operators are not allowed to send invitations");
 	if (is_member(input_channel->get_registered(), m_nickname) == false)
 		throw std::invalid_argument("non-members are not allowed to send invitations");
-	if (is_member(input_channel->get_registered(), nickname) == true)
+	if (is_member(input_channel->get_registered(), nickname))
 		throw std::invalid_argument("the user you are trying to invite is already a member");
+	// maybe check If the user is already invited
 	invite_client(*input_client, *input_channel);
+}
+
+
+
+// <channel> *( ( "-" / "+" ) *<modes> *<modeparams> )
+void Client::handle_mode(const std::string& buffer)
+{
+	const std::map<std::string, Channel*>& channels = _server.get_channels();
+	std::istringstream	iss(buffer);
+	std::string channel_name;
+	std::string type;
+	std::string mode;
+	std::string mode_param;
+	// const std::string modes[] = {"i", "t", "k", "o", "l"};
+
+	iss >> channel_name >> type >> mode >> mode_param;
+	if (channel_name.empty() || type.empty() || (type != "-" && type != "+") || mode.empty() || mode.length() != 1) // check If there are more params than it should
+		throw std::invalid_argument("invalid input format\nusage: MODE <channel> ( \"-\" / \"+\" ) ( \"i\" / \"t\" / \"k\" / \"o\" / \"l\" ) [<modeparam>]");
+	Channel* input_channel = find_channel(channels, channel_name);
+	if (input_channel == NULL)
+		throw std::invalid_argument("channel does not exist");
+	if (is_operator(*input_channel, m_nickname) == false)
+		throw std::invalid_argument("non-channel-operators are not allowed to use MODE");
+	const std::map<int, Client*>& clients = _server.get_clients();
+	Client* input_client = find_client(clients, mode_param);
+	switch (mode[0])
+	{
+		case ('i'):
+			if (type[0] == '+')
+				input_channel->set_invite_only(true);
+			else
+				input_channel->set_invite_only(false);
+			break ;
+		case ('t'):
+			if (type[0] == '+')
+				input_channel->set_topic_restriciton(true);
+			else
+				input_channel->set_topic_restriciton(false);
+			break ;
+		case ('k'):
+			if (type[0] == '+')
+				input_channel->set_key(mode_param);
+			else
+				input_channel->set_key_needed(false);
+			break ;
+		case ('o'):
+			if (input_client == NULL)
+				throw std::invalid_argument("user does not exist");
+			if (is_member(input_channel->get_registered(), mode_param) == false)
+				throw std::invalid_argument("user is not a member of channel " + input_channel->get_name());
+			std::cout << "JO\n";
+			if (type[0] == '+')
+			{
+				if (is_operator(*input_channel, mode_param))
+					throw std::invalid_argument("user is already an operator of channel " + input_channel->get_name());
+				input_channel->set_operator(mode_param, give);
+			}
+			else
+				input_channel->set_operator(mode_param, take);
+			break ;
+		default:
+			throw std::invalid_argument("invalid mode\n");
+			break ;
+	}
 }

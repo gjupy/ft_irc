@@ -6,7 +6,7 @@
 /*   By: gjupy <gjupy@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/04/26 15:47:56 by gjupy             #+#    #+#             */
-/*   Updated: 2023/04/28 18:44:47 by gjupy            ###   ########.fr       */
+/*   Updated: 2023/05/03 12:27:19 by gjupy            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,6 +16,11 @@
 #include <string>
 #include <vector>
 #include <set>
+
+enum e_op_privilege {
+	give,
+	take
+};
 
 class Client;
 
@@ -32,7 +37,6 @@ class Channel {
 		bool	_invite_only;
 		bool	_topic_restriciton;
 		bool	_key_needed;
-		bool	_privilege;
 		bool	_user_limit;
 
 	public:
@@ -40,7 +44,6 @@ class Channel {
 		~Channel();
 		Channel(const Channel& src);
 		Channel& operator=(const Channel& rhs);
-
 
 		bool	get_invite_only() const;
 		bool	get_topic_restriciton() const;
@@ -57,7 +60,7 @@ class Channel {
 		void	set_invite_only(bool value);
 		void	set_topic_restriciton(bool value);
 		void	set_key_needed(bool value);
-		void	set_privilege(bool value);
+		void	set_operator(std::string&, int);
 		void	set_user_limit(bool value);
 
 		void	set_registered(Client&);
