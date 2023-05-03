@@ -48,13 +48,13 @@ bool Client::is_valid_key(Channel* channel, const std::string& input_key)
 	return (false);
 }
 
-bool Client::is_invited(const Channel* channel)
+bool Client::is_invited(const Channel* channel, const std::string& nickname)
 {
 	std::set<Client*> invited = channel->get_invited();
 
 	for(std::set<Client*>::iterator it = invited.begin(); it != invited.end(); ++it)
 	{
-		if ((*it)->m_nickname == m_nickname)
+		if ((*it)->m_nickname == nickname)
 			return (true);
 	}
 	return (false);
@@ -82,7 +82,7 @@ void Client::add_user(std::map<std::string, std::string> &channels_to_keys)
 		{
 			if (is_registered(it_channel->second))
 				throw std::invalid_argument("you are already registered to channel " + it_channel->first + "\n");
-			if (it_channel->second->get_invite_only() && !is_invited(it_channel->second))
+			if (it_channel->second->get_invite_only() && !is_invited(it_channel->second, m_nickname))
 				throw std::invalid_argument("invite-only channel: you are not invited to " + it_channel->first + "\n");
 			if (it_channel->second->get_key_needed() && !is_valid_key(it_channel->second, it->second))
 				throw std::invalid_argument("wrong key for " + it_channel->first + "\n");
@@ -349,8 +349,9 @@ void Client::handle_invite(const std::string& buffer)
 	if (is_member(input_channel->get_registered(), m_nickname) == false)
 		throw std::invalid_argument("non-members are not allowed to send invitations");
 	if (is_member(input_channel->get_registered(), nickname))
-		throw std::invalid_argument("the user you are trying to invite is already a member");
-	// maybe check If the user is already invited
+		throw std::invalid_argument("the user you are trying to invite is already a member of " + input_channel->get_name());
+	if (is_invited(input_channel, m_nickname)) // FIX THIS
+		throw std::invalid_argument("the user you are trying to invite is already invited to channel " + input_channel->get_name());
 	invite_client(*input_client, *input_channel);
 }
 

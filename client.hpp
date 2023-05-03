@@ -26,10 +26,10 @@ class Client {
 
 		void handle_join(const std::string&);
 		void join_parser(const std::string&, std::map<std::string, std::string> &);
-		bool is_valid_key(Channel* channel, const std::string& input_key);
-		bool is_invited(const Channel* channel);
-		bool is_registered(const Channel* channel);
-		void add_user(std::map<std::string, std::string> &);
+		bool is_valid_key(Channel*, const std::string&);
+		bool is_invited(const Channel*, const std::string&);
+		bool is_registered(const Channel*);
+		void add_user(std::map<std::string, std::string>&);
 
 		void handle_invite(const std::string&);
 		Client* find_client(const std::map<int, Client*>&, const std::string&) const;
