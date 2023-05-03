@@ -385,7 +385,7 @@ void Client::handle_invite(const std::string& buffer)
 		throw std::invalid_argument("non-members are not allowed to send invitations");
 	if (is_member(input_channel->get_registered(), nickname))
 		throw std::invalid_argument("the user you are trying to invite is already a member of " + input_channel->get_name());
-	if (is_invited(input_channel, m_nickname)) // FIX THIS
+	if (is_invited(input_channel, nickname))
 		throw std::invalid_argument("the user you are trying to invite is already invited to channel " + input_channel->get_name());
 	invite_client(*input_client, *input_channel);
 }
