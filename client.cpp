@@ -81,20 +81,22 @@ void Client::add_user(std::map<std::string, std::string> &channels_to_keys)
 		if ((it_channel = channels.find(it->first)) != channels.end()) // if channels exists
 		{
 			if (is_registered(it_channel->second))
-				throw std::invalid_argument("you are already registered to channel " + it_channel->first + "\n");
+				// throw std::invalid_argument("you are already registered to channel " + it_channel->first + "\n");
+				return ;
 			if (it_channel->second->get_invite_only() && !is_invited(it_channel->second, m_nickname))
-				throw std::invalid_argument("invite-only channel: you are not invited to " + it_channel->first + "\n");
+				throw std::invalid_argument("473 " + m_nickname + " " + it_channel->first + " :Cannot join channel (invite only)");
 			if (it_channel->second->get_key_needed() && !is_valid_key(it_channel->second, it->second))
-				throw std::invalid_argument("wrong key for " + it_channel->first + "\n");
+				throw std::invalid_argument("475 " + m_nickname + " " + it_channel->first + " :Cannot join channel (bad key)");
 			it_channel->second->set_registered(*this);
-			std::cout << "you are registered to " << it_channel->first << "\n";
+			_server.send_to_client(m_nickname, ":" + m_nickname + " JOIN :" + it_channel->second->get_name() + "\r\n");
 		}
 		else
 		{
 			Channel* new_channel = new Channel(it->first, it->second, m_nickname);
 			new_channel->set_registered(*this);
 			_server.add_new_channel(new_channel);
-			std::cout << "you created channel " << new_channel->get_name() << "\n";
+			std::cout << ":" + m_nickname + " JOIN :" + new_channel->get_name() + "\r\n";
+			_server.send_to_client(m_nickname, ":" + m_nickname + " JOIN :" + new_channel->get_name() + "\r\n");
 		}
 	}
 }
@@ -116,7 +118,9 @@ void Client::join_parser(const std::string& buffer, std::map<std::string, std::s
 	iss >> channel_list >> key_list;
 
 	if (channel_list.empty() || are_remain_args(iss))
-		throw std::invalid_argument("invalid input format\nusage: JOIN <channel> *(\",\" <channel>) [<key> *(\",\" <key>)]");
+		// throw std::invalid_argument("invalid input format\nusage: JOIN <channel> *(\",\" <channel>) [<key> *(\",\" <key>)]");
+		throw std::invalid_argument("461 " + m_nickname + " JOIN :Not enough parameters");
+		return ;
 	std::istringstream channel_stream(channel_list);
 	std::istringstream key_stream(key_list);
 	std::string channel, key;
@@ -127,12 +131,18 @@ void Client::join_parser(const std::string& buffer, std::map<std::string, std::s
 	}
 	for (std::map<std::string, std::string>::iterator it = channels_to_keys.begin(); it != channels_to_keys.end(); ++it)
 	{
-		if (it->first[0] != '#' || it->first.length() == 1)
-			throw std::invalid_argument("channel names must be prefixed by a '#' and contain at leats one character");
-		if (it->first.find(',') != std::string::npos || it->first.find((char)7) != std::string::npos)
-			throw std::invalid_argument("channel name shall not contain control G or a comma");
-		if (it->first.length() > 50)
-			throw std::invalid_argument("channel names are at most fifty (50) charachters long");
+		if (it->first[0] != '#' || it->first.length() == 1
+			|| it->first.find(' ') != std::string::npos || it->first.find(',') != std::string::npos
+			|| it->first.find((char)7) != std::string::npos
+			|| it->first.length() > 50)
+			throw std::invalid_argument("403 " + m_nickname + " " + it->first + " :No such channel");
+			// throw std::invalid_argument("channel names must be prefixed by a '#' and contain at leats one character");
+		// if (it->first.find(',') != std::string::npos || it->first.find((char)7) != std::string::npos)
+			// throw std::invalid_argument("channel name shall not contain control G or a comma");
+			// throw std::invalid_argument("403 " + m_nickname + " " + it->first + " :No such channel");
+		// if (it->first.length() > 50)
+			// throw std::invalid_argument("channel names are at most fifty (50) charachters long");
+			// throw std::invalid_argument("403 " + m_nickname + " " + it->first + " :No such channel");
 	}
 	try
 	{
@@ -184,7 +194,7 @@ void Client::parse_command(const std::string &command) {
 			}
 			catch(const std::exception& e)
 			{
-				std::cerr << "Error\n" << e.what() << '\n';
+				_server.send_to_client(m_nickname, e.what() + std::string("\r\n"));
 				return ;
 			}
 			// (this->*(it->second))(args);
@@ -259,6 +269,8 @@ void Client::handle_nick(const std::string &args) {
 	m_nickname = arg;
 	m_is_registered = true;
 	std::cout << "Client " << m_fd << " set nickname to: " << m_nickname << std::endl;
+	_server.send_to_client(m_nickname, "001 " + m_nickname + " :Welcome to the Internet Relay Network, " + m_nickname + "!" + "\r\n"); // 001: RPL_WELCOME
+	// _server.send_to_client(m_nickname, "002 " + m_nickname + " :Your host is 127.0.0.1, running version 1.0" + "\r\n"); // 002: RPL_YOURHOST
 }
 
 void Client::handle_privmsg(const std::string& args) {
@@ -359,8 +371,8 @@ bool Client::is_member(const std::set<Client*>& registered, const std::string& n
 void Client::invite_client(Client& client, Channel& channel)
 {
 	channel.set_invited(client);
-	_server.send_to_client(m_nickname, "you invited " + client.get_nickname() + " to channel " + channel.get_name() + "\n");
-	_server.send_to_client(client.m_nickname, "you were invited by " + client.get_nickname() + " to join channel " + channel.get_name() + "\n");
+	_server.send_to_client(m_nickname, "341 " + client.get_nickname() + " " + channel.get_name() + " " + client.get_nickname() + "\r\n");
+	_server.send_to_client(client.m_nickname, "341 " + client.get_nickname() + " " + channel.get_name() + " " + client.get_nickname() + "\r\n");
 }
 
 void Client::handle_invite(const std::string& buffer)
@@ -371,23 +383,24 @@ void Client::handle_invite(const std::string& buffer)
 
 	iss >> nickname >> channel_name;
 	if (nickname.empty() || channel_name.empty() || are_remain_args(iss))
-		throw std::invalid_argument("invalid input format\nusage: INVITE <nickname> <channel>");
+		// throw std::invalid_argument("invalid input format\nusage: INVITE <nickname> <channel>");
+		throw std::invalid_argument("461 " + m_nickname + " INVITE :Not enough parameters");
 	const std::map<std::string, Channel*>& channels = _server.get_channels();
 	Channel* input_channel = find_channel(channels, channel_name);
 	if (input_channel == NULL)
-		throw std::invalid_argument("channel does not exist");
+		throw std::invalid_argument("403 " + m_nickname + " " + channel_name + " :No such channel");
 	const std::map<int, Client*>& clients = _server.get_clients();
 	Client* input_client = find_client(clients, nickname);
 	if (input_client == NULL)
-		throw std::invalid_argument("user does not exist");
+		throw std::invalid_argument("401 " + m_nickname + " " + nickname + " :No such nick/channel");
 	if (is_member(input_channel->get_registered(), m_nickname) == false)
-		throw std::invalid_argument("non-members are not allowed to send invitations");
+		throw std::invalid_argument("442 " + m_nickname + " " + channel_name + " :You're not on that channel");
 	if (input_channel->get_invite_only() && is_operator(*input_channel, m_nickname) == false)
-		throw std::invalid_argument("this channel is invite-only: non-channel-operators are not allowed to send invitations");
+		throw std::invalid_argument("482 " + m_nickname + " " + channel_name + " :You're not channel operator");
 	if (is_member(input_channel->get_registered(), nickname))
-		throw std::invalid_argument("the user you are trying to invite is already a member of " + input_channel->get_name());
+		throw std::invalid_argument("443 " + m_nickname + " " + nickname + " " + channel_name + " :is already on channel");
 	if (is_invited(input_channel, nickname))
-		throw std::invalid_argument("the user you are trying to invite is already invited to channel " + input_channel->get_name());
+		return ;
 	invite_client(*input_client, *input_channel);
 }
 
