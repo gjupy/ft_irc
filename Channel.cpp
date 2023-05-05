@@ -24,7 +24,7 @@ Channel::Channel(const std::string& name, std::string& key, const std::string& c
 	_operators.insert(c_operator);
 	_invite_only = false;
 	_topic_restriciton = false;
-	_user_limit = false;
+	_user_limit = 0;
 }
 
 Channel::~Channel()
@@ -72,9 +72,14 @@ bool	Channel::get_key_needed() const
 	return (_key_needed);
 }
 
-bool	Channel::get_user_limit() const
+unsigned short	Channel::get_user_limit() const
 {
 	return (_user_limit);
+}
+
+void	Channel::set_user_limit(unsigned short limit)
+{
+	_user_limit = limit;
 }
 
 void Channel::set_invite_only(bool value) {
@@ -87,10 +92,6 @@ void Channel::set_topic_restriciton(bool value) {
 
 void Channel::set_key_needed(bool value) {
 	_key_needed = value;
-}
-
-void Channel::set_user_limit(bool value) {
-	_user_limit = value;
 }
 
 const std::set<Client*>&	Channel::get_invited() const
@@ -186,4 +187,18 @@ void	Channel::erase_user(const std::string& nickname)
 		}
 	}
 	set_operator(nickname, take);
+}
+
+const std::string	Channel::get_modes()
+{
+	std::string modes("+");
+	if (_invite_only)
+		modes += "i";
+	if (_topic_restriciton)
+		modes += "t";
+	if (_key_needed)
+		modes += "k";
+	if (_user_limit)
+		modes += "l";
+	return (modes);
 }

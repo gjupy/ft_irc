@@ -413,8 +413,9 @@ void Client::handle_mode(const std::string& buffer)
 	std::string mode_param;
 
 	iss >> channel_name >> mode >> mode_param;
-	if (channel_name.empty() || mode.empty() || mode.empty()) // check If there are more params than it should
+	if (channel_name.empty()) // check If there are more params than it should
 		throw std::invalid_argument("461 " + m_nickname + " MODE :Not enough parameters");
+	// client.sendResponse(":" + hostname + " 324 " + client.getNickname() + " " + channelName + " :" + modeString);
 		// throw std::invalid_argument("invalid input format\nusage: MODE <channel> ( \"-\" / \"+\" ) ( \"i\" / \"t\" / \"k\" / \"o\" / \"l\" ) [<modeparam>]");
 	if (mode[0] != '+' && mode[0]!= '-')
 		throw std::invalid_argument("472 " + m_nickname + " " + mode[0] + " :is unknown mode char to me for " + channel_name);
@@ -423,8 +424,15 @@ void Client::handle_mode(const std::string& buffer)
 		throw std::invalid_argument("403 " + m_nickname + " " + channel_name + " :No such channel");
 	if (is_operator(*input_channel, m_nickname) == false)
 		throw std::invalid_argument("482 " + m_nickname + " " + channel_name + " :You're not channel operator");
+	if (mode.empty())
+	{
+		// OR HOSTNAME
+		_server.send_to_client(m_nickname, ":" + std::string(SERVERNAME) + m_nickname + " " + channel_name + " " + input_channel->get_modes() + "\r\n");
+		return ;
+	}
 	const std::map<int, Client*>& clients = _server.get_clients();
 	Client* input_client = find_client(clients, mode_param);
+	std::string response;
 	switch (mode[1])
 	{
 		case ('i'):
@@ -446,6 +454,8 @@ void Client::handle_mode(const std::string& buffer)
 				input_channel->set_key_needed(false);
 			break ;
 		case ('o'):
+			if (mode_param.empty())
+				throw std::invalid_argument("461 " + m_nickname + " MODE :Not enough parameters");
 			if (input_client == NULL)
 				throw std::invalid_argument("406 " + m_nickname + " " + mode_param + " :There was no such nickname");
 			if (is_member(input_channel->get_registered(), mode_param) == false)
@@ -453,14 +463,31 @@ void Client::handle_mode(const std::string& buffer)
 			if (mode[0] == '+')
 			{
 				if (is_operator(*input_channel, mode_param))
-					// throw std::invalid_argument("user is already an operator of channel " + input_channel->get_name());
 					return ;
+					// throw std::invalid_argument("user is already an operator of channel " + input_channel->get_name());
 				input_channel->set_operator(mode_param, give);
-				// send message to reference client
 			}
 			else
 				input_channel->set_operator(mode_param, take);
-				// send message to reference client
+			response = ":" + m_nickname + "!~" + m_username + "@" + std::string(HOST) + " MODE " + channel_name + " " + mode + " " + mode_param;
+			// sendResponseToChannel(client, channelName, response);
+				// send message to everyone on channel other than the sender
+			break ;
+		case ('l'):
+			if (mode_param.empty())
+				throw std::invalid_argument("461 " + m_nickname + " MODE :Not enough parameters");
+			if (mode[0] == '+')
+			{
+				std::stringstream ss(mode_param);
+				unsigned short limit;
+				ss >> limit;
+				if (limit <= 0)
+					return ;
+				input_channel->set_user_limit(limit);
+			}
+			else
+				input_channel->set_user_limit(0);
+			// handle in JOIN if limit is reached
 			break ;
 		default:
 			throw std::invalid_argument("472 " + m_nickname + " " + mode[1] + " :is unknown mode char to me for " + channel_name);
