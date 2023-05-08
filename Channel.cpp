@@ -24,7 +24,7 @@ Channel::Channel(const std::string& name, std::string& key, const std::string& c
 	_operators.insert(c_operator);
 	_invite_only = false;
 	_topic_restriciton = false;
-	_user_limit = false;
+	_user_limit = 0;
 }
 
 Channel::~Channel()
@@ -72,9 +72,14 @@ bool	Channel::get_key_needed() const
 	return (_key_needed);
 }
 
-bool	Channel::get_user_limit() const
+unsigned short	Channel::get_user_limit() const
 {
 	return (_user_limit);
+}
+
+void	Channel::set_user_limit(unsigned short limit)
+{
+	_user_limit = limit;
 }
 
 void Channel::set_invite_only(bool value) {
@@ -87,10 +92,6 @@ void Channel::set_topic_restriciton(bool value) {
 
 void Channel::set_key_needed(bool value) {
 	_key_needed = value;
-}
-
-void Channel::set_user_limit(bool value) {
-	_user_limit = value;
 }
 
 const std::set<Client*>&	Channel::get_invited() const
@@ -121,6 +122,16 @@ const std::string& Channel::get_name() const
 	return (_name);
 }
 
+const std::string& Channel::get_topic() const
+{
+	return (_topic);
+}
+
+void Channel::set_topic(const std::string& topic)
+{
+	_topic = topic;
+}
+
 void	Channel::set_registered(Client& new_client)
 {
 	Client* client = new Client(new_client);
@@ -133,7 +144,7 @@ void	Channel::set_invited(Client& new_client)
 	_invited.insert(client);
 }
 
-void Channel::set_operator(std::string& some_operator, int action)
+void Channel::set_operator(const std::string& some_operator, int action)
 {
 	std::set<std::string>::iterator it_operators = _operators.find(some_operator);
 	if (action == give)
@@ -153,4 +164,41 @@ void Channel::set_operator(std::string& some_operator, int action)
 const std::set<std::string>	Channel::get_operators() const
 {
 	return (_operators);
+}
+
+void	Channel::erase_user(const std::string& nickname)
+{
+	for (std::set<Client*>::iterator it = _registered.begin(); it != _registered.end(); ++it)
+	{
+		if ((*it)->get_nickname() == nickname)
+		{
+			delete(*it);
+			_registered.erase(it);
+			break ;
+		}
+	}
+	for (std::set<Client*>::iterator it = _invited.begin(); it != _invited.end(); ++it)
+	{
+		if ((*it)->get_nickname() == nickname)
+		{
+			delete(*it);
+			_invited.erase(it);
+			break ;
+		}
+	}
+	set_operator(nickname, take);
+}
+
+const std::string	Channel::get_modes()
+{
+	std::string modes("+");
+	if (_invite_only)
+		modes += "i";
+	if (_topic_restriciton)
+		modes += "t";
+	if (_key_needed)
+		modes += "k";
+	if (_user_limit)
+		modes += "l";
+	return (modes);
 }
