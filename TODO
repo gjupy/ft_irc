@@ -1,4 +1,2 @@
 - it shouldnt be possible to register again (set nickname usw)
-- check If someone is already invited when sending invitation
-- all messages (errors, confirmations etc) should be sent as privmsg?
-- add error replies
+- send message to channel

@@ -81,12 +81,13 @@ void Client::add_user(std::map<std::string, std::string> &channels_to_keys)
 		if ((it_channel = channels.find(it->first)) != channels.end()) // if channels exists
 		{
 			if (is_registered(it_channel->second))
-				// throw std::invalid_argument("you are already registered to channel " + it_channel->first + "\n");
-				return ;
+				return ; // USER ALREADY REGISTERED
+			if (it_channel->second->get_user_limit() && it_channel->second->get_registered().size() >= it_channel->second->get_user_limit())
+				throw std::invalid_argument("471 " + m_nickname + " " + it_channel->first + " :Cannot join channel (+l)");
 			if (it_channel->second->get_invite_only() && !is_invited(it_channel->second, m_nickname))
-				throw std::invalid_argument("473 " + m_nickname + " " + it_channel->first + " :Cannot join channel (invite only)");
+				throw std::invalid_argument("473 " + m_nickname + " " + it_channel->first + " :Cannot join channel (+i)");
 			if (it_channel->second->get_key_needed() && !is_valid_key(it_channel->second, it->second))
-				throw std::invalid_argument("475 " + m_nickname + " " + it_channel->first + " :Cannot join channel (bad key)");
+				throw std::invalid_argument("475 " + m_nickname + " " + it_channel->first + " :Cannot join channel (+k)");
 			it_channel->second->set_registered(*this);
 			_server.send_to_client(m_nickname, ":" + m_nickname + " JOIN :" + it_channel->second->get_name() + "\r\n");
 		}
@@ -135,13 +136,6 @@ void Client::join_parser(const std::string& buffer, std::map<std::string, std::s
 			|| it->first.find((char)7) != std::string::npos
 			|| it->first.length() > 50)
 			throw std::invalid_argument("403 " + m_nickname + " " + it->first + " :No such channel");
-			// throw std::invalid_argument("channel names must be prefixed by a '#' and contain at leats one character");
-		// if (it->first.find(',') != std::string::npos || it->first.find((char)7) != std::string::npos)
-			// throw std::invalid_argument("channel name shall not contain control G or a comma");
-			// throw std::invalid_argument("403 " + m_nickname + " " + it->first + " :No such channel");
-		// if (it->first.length() > 50)
-			// throw std::invalid_argument("channel names are at most fifty (50) charachters long");
-			// throw std::invalid_argument("403 " + m_nickname + " " + it->first + " :No such channel");
 	}
 	try
 	{
@@ -269,7 +263,7 @@ void Client::handle_nick(const std::string &args) {
 	m_is_registered = true;
 	std::cout << "Client " << m_fd << " set nickname to: " << m_nickname << std::endl;
 	_server.send_to_client(m_nickname, "001 " + m_nickname + " :Welcome to the Internet Relay Network, " + m_nickname + "!" + "\r\n"); // 001: RPL_WELCOME
-	// _server.send_to_client(m_nickname, "002 " + m_nickname + " :Your host is 127.0.0.1, running version 1.0" + "\r\n"); // 002: RPL_YOURHOST
+	_server.send_to_client(m_nickname, "002 " + m_nickname + " :Your host is " + std::string(HOST) + ", running version 1.0" + "\r\n"); // 002: RPL_YOURHOST
 }
 
 void Client::handle_privmsg(const std::string& args) {
@@ -415,7 +409,6 @@ void Client::handle_mode(const std::string& buffer)
 	iss >> channel_name >> mode >> mode_param;
 	if (channel_name.empty()) // check If there are more params than it should
 		throw std::invalid_argument("461 " + m_nickname + " MODE :Not enough parameters");
-	// client.sendResponse(":" + hostname + " 324 " + client.getNickname() + " " + channelName + " :" + modeString);
 		// throw std::invalid_argument("invalid input format\nusage: MODE <channel> ( \"-\" / \"+\" ) ( \"i\" / \"t\" / \"k\" / \"o\" / \"l\" ) [<modeparam>]");
 	if (mode[0] != '+' && mode[0]!= '-')
 		throw std::invalid_argument("472 " + m_nickname + " " + mode[0] + " :is unknown mode char to me for " + channel_name);
@@ -427,7 +420,7 @@ void Client::handle_mode(const std::string& buffer)
 	if (mode.empty())
 	{
 		// OR HOSTNAME
-		_server.send_to_client(m_nickname, ":" + std::string(SERVERNAME) + m_nickname + " " + channel_name + " " + input_channel->get_modes() + "\r\n");
+		_server.send_to_client(m_nickname, ":" + std::string(SERVERNAME) + " 324 " + m_nickname + " " + channel_name + " " + input_channel->get_modes() + "\r\n");
 		return ;
 	}
 	const std::map<int, Client*>& clients = _server.get_clients();
@@ -463,8 +456,7 @@ void Client::handle_mode(const std::string& buffer)
 			if (mode[0] == '+')
 			{
 				if (is_operator(*input_channel, mode_param))
-					return ;
-					// throw std::invalid_argument("user is already an operator of channel " + input_channel->get_name());
+					return ; // USER IS ALREADY OPERATOR
 				input_channel->set_operator(mode_param, give);
 			}
 			else
@@ -487,7 +479,6 @@ void Client::handle_mode(const std::string& buffer)
 			}
 			else
 				input_channel->set_user_limit(0);
-			// handle in JOIN if limit is reached
 			break ;
 		default:
 			throw std::invalid_argument("472 " + m_nickname + " " + mode[1] + " :is unknown mode char to me for " + channel_name);
@@ -531,7 +522,7 @@ void Client::kick_user(std::map<std::string, std::string>& channels_to_nick, con
 		if (!is_operator(*input_channel, m_nickname))
 			throw std::invalid_argument("482 " + m_nickname + " " + it->first + " :You're not channel operator");
 		input_channel->erase_user(it->second);
-		// send message to reference client
+		_server.send_to_client(it->second, ":" + m_nickname + " KICK " + it->first + " " + it->second + " :" + "\r\n");
 	}
 }
 
@@ -570,15 +561,15 @@ void Client::handle_topic(const std::string& buffer)
 		throw std::invalid_argument("482 " + m_nickname + " " + channel_name + " :You're not channel operator");
 	iss >> topic_name;
 	if (topic_name.empty())
-		_server.send_to_client(m_nickname, input_channel->get_topic());
-	else if (topic_name == "\"\"" || topic_name == "\'\'")
 	{
-		input_channel->set_topic("");
-		// send message to reference client
+		const std::string& topic = input_channel->get_topic();
+		if (topic.empty())
+			throw std::invalid_argument("331 " + m_nickname + " " + channel_name + " :No topic is set");
+		else
+			_server.send_to_client(m_nickname, "332 " + m_nickname + " " + channel_name + " :" + topic + std::string("\r\n"));
 	}
+	else if (topic_name == "\"\"" || topic_name == "\'\'") // if topic input is empty
+		input_channel->set_topic("");	// set topic to empty (delete topic)
 	else
-	{
-		input_channel->set_topic(topic_name);
-		// send message to reference client
-	}
+		input_channel->set_topic(topic_name); // set new topic
 }
