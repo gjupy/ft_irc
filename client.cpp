@@ -237,6 +237,9 @@ void Client::handle_user(const std::string &args) {
 	if (!m_authenticated)
 		throw std::invalid_argument("461 " + m_nickname + " :Please provide a server password using PASS command");
 
+	if (!m_username.empty())
+		throw std::invalid_argument("462 " + m_nickname + " :You are already registered");
+
 	std::istringstream iss(args);
 	std::string arg;
 
