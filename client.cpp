@@ -6,7 +6,7 @@
 #include <iostream>
 #include <exception>
 
-Client::Client(int fd, Server& server) : m_fd(fd), m_is_registered(false), _server(server), m_nickname(""), m_username(""), m_authenticated(false), buffer("")
+Client::Client(int fd, Server& server) : m_fd(fd), m_is_registered(false), _server(server), m_nickname("*"), m_username(""), m_authenticated(false), buffer("")
 {
 	m_commands["PASS"] = &Client::handle_pass;
 	m_commands["NICK"] = &Client::handle_nick;
@@ -17,6 +17,8 @@ Client::Client(int fd, Server& server) : m_fd(fd), m_is_registered(false), _serv
 	m_commands["INVITE"] = &Client::handle_invite;
 	m_commands["MODE"] = &Client::handle_mode;
 	m_commands["PRIVMSG"] = &Client::handle_privmsg;
+	m_commands["PING"] = &Client::handle_ping;
+	m_commands["CAP"] = &Client::handle_cap;
 }
 
 const std::string& Client::get_nickname() const {
@@ -60,7 +62,7 @@ bool Client::is_invited(const Channel* channel, const std::string& nickname)
 	return (false);
 }
 
-bool Client::is_registered(const Channel* channel)
+bool Client::is_registered_channel(const Channel* channel)
 {
 	std::set<Client*> registered = channel->get_registered();
 
@@ -80,7 +82,7 @@ void Client::add_user(std::map<std::string, std::string> &channels_to_keys)
 	{
 		if ((it_channel = channels.find(it->first)) != channels.end()) // if channels exists
 		{
-			if (is_registered(it_channel->second))
+			if (is_registered_channel(it_channel->second))
 				return ; // USER ALREADY REGISTERED
 			if (it_channel->second->get_user_limit() && it_channel->second->get_registered().size() >= it_channel->second->get_user_limit())
 				throw std::invalid_argument("471 " + m_nickname + " " + it_channel->first + " :Cannot join channel (+l)");
@@ -147,6 +149,24 @@ void Client::join_parser(const std::string& buffer, std::map<std::string, std::s
 	}
 }
 
+void Client::handle_ping(const std::string& args)
+{
+	if (args.size() < 1) {
+		// Send an error message to the client.
+		_server.send_to_client(m_nickname, "461 " + m_nickname + " PING" + "\r\n");
+		return;
+	}
+	// Send a PONG response to the client.
+	_server.send_to_client(m_nickname, "PONG " + m_nickname + " 127.0.0.1" + "\r\n");
+}
+
+void Client::handle_cap(const std::string& args)
+{
+	std::cout << "CAP: " << args << std::endl;
+	// (void)args;
+	return;
+}
+
 /*
 c1 *(,cn) *(key) *(, key)
 keys are assigned to the channels in the order they are written
@@ -199,94 +219,64 @@ void Client::parse_command(const std::string &command) {
 
 void Client::handle_pass(const std::string &args) {
 	if (m_authenticated)
-		return ;
-	std::cout << "args: " << args << std::endl;
+		throw std::invalid_argument("462 " + m_nickname + " :You are already registered");
+
 	std::string arg;
 	std::istringstream iss(args);
 	iss >> arg;
 
-	if (arg != _server.get_password()) {
-		// Send an error response
-		std::cout << "Wrong password" << std::endl;
-		return;
-	}
+	if (arg != _server.get_password())
+		throw std::invalid_argument("464 " + m_nickname + " :Password incorrect");
 
 	m_authenticated = true;
-	// Send a welcome response
 	std::cout << "Client " << m_fd << " authenticated" << std::endl;
-
 }
 
+
 void Client::handle_user(const std::string &args) {
-	if (!m_authenticated){
-		std::cout << "Error: USER command requires an authenticated client." << std::endl;
-		return;
-	}
-	std::cout << "args: " << args << std::endl;
+	if (!m_authenticated)
+		throw std::invalid_argument("461 " + m_nickname + " :Please provide a server password using PASS command");
+
 	std::istringstream iss(args);
 	std::string arg;
 
-	if (!(iss >> arg)) {
-		std::cout << "Error: USER command requires a username" << std::endl;
-		return;
-	}
-
-	if (arg[0] == '#') {
-		std::cout << "Error: Nickname cannot start with '#'" << std::endl;
-		return;
-	}
+	if (!(iss >> arg || arg[0] == '#'))
+		throw std::invalid_argument("461 " + m_nickname + " USER :Not correct usage of USER command");
 
 	m_username = arg;
 	std::cout << "Client " << m_fd << " set username to: " << m_username << std::endl;
 }
 
 void Client::handle_nick(const std::string &args) {
-	if (!m_authenticated || m_username.empty()){
-		std::cout << "Error: NICK command requires an authenticated client with username." << std::endl;
-		return ;
-	}
-	std::cout << "args: " << args << std::endl;
+	if (!m_authenticated || m_username.empty())
+		throw std::invalid_argument("461 " + m_nickname + " :You need to register using PASS and USER commands");
+
 	std::string arg;
 	std::istringstream iss(args);
 
-	if (!(iss >> arg)) {
-		std::cout << "Error: NICK command requires a nickname." << std::endl;
-		return;
-	}
-
-	if (arg[0] == '#') {
-		std::cout << "Error: Nickname cannot start with '#'" << std::endl;
-		return;
-	}
+	if (!(iss >> arg || arg[0] == '#'))
+		throw std::invalid_argument("461 " + m_nickname + " NICK :Not correct usage of NICK command");
 
 	m_nickname = arg;
 	m_is_registered = true;
 	std::cout << "Client " << m_fd << " set nickname to: " << m_nickname << std::endl;
 	_server.send_to_client(m_nickname, "001 " + m_nickname + " :Welcome to the Internet Relay Network, " + m_nickname + "!" + "\r\n"); // 001: RPL_WELCOME
-	_server.send_to_client(m_nickname, "002 " + m_nickname + " :Your host is " + std::string(HOST) + ", running version 1.0" + "\r\n"); // 002: RPL_YOURHOST
+	// _server.send_to_client(m_nickname, "002 " + m_nickname + " :Your host is " + std::string(HOST) + ", running version 1.0" + "\r\n"); // 002: RPL_YOURHOST
 }
 
 void Client::handle_privmsg(const std::string& args) {
-	if (!m_is_registered){
-		std::cout << "Error: PRIVMSG command requires a fully registered client." << std::endl;
-		return ;
-	}
-
-	std::cout << "args: " << args << std::endl;
-
-	if (args.empty()) {
-		std::cout << "Error: No recipient for PRIVMSG" << std::endl;
-		return;
-	}
+	if (!m_is_registered)
+		throw std::invalid_argument("461 " + m_nickname + " :Please set both USER and NICK before using other commands");
+	// ERR_NEEDMOREPARAMS
+	if (args.empty())
+		throw std::invalid_argument("411 " + m_nickname + " :No recipient given (PRIVMSG)");
 
 	std::string target, message;
 	std::istringstream iss(args);
 	iss >> target;
 
-	if (!std::getline(iss, message)) {
-		std::cout << "Error: No text to send" << std::endl;
-		return;
-	}
+	if (!std::getline(iss, message))
+		throw std::invalid_argument("412 " + m_nickname + " :No text to send");
 
 	const std::map<std::string, Channel*>& channels = _server.get_channels();
 
@@ -296,25 +286,22 @@ void Client::handle_privmsg(const std::string& args) {
 		Channel* channel = it->second;
 		const std::set<Client*>& registered_clients = channel->get_registered();
 
-		if (is_registered(channel)) {
+		if (is_registered_channel(channel)) {
 			for (std::set<Client*>::iterator it = registered_clients.begin(); it != registered_clients.end(); ++it) {
 				Client* client = *it;
 				if (client != this) {
-					std::string full_message = m_nickname + " to " + target + ": " + message + "\r\n";
-					send(client->m_fd, full_message.c_str(), full_message.size(), 0);
+					std::string response = ":" + m_nickname + " PRIVMSG " + target + " :" + message + "\r\n";
+					_server.send_to_client(client->get_nickname(), response);
 				}
 			}
 		} else
-			std::cout << "Error: Cannot send to channel " << target << std::endl;
+			throw std::invalid_argument("404 " + m_nickname + " " + target + " :Cannot send to channel");
 	}
 	else {
 		// If the target is not an existing channel, it's a private message to a user or a non-existing channel
-		if (!_server.send_to_client(target, m_nickname + ": " + message + "\r\n")) {
-			if (target[0] == '#')
-				std::cout << "Error: No such channel " << target << std::endl;
-			else
-				std::cout << "Error: No such nickname " << target << std::endl;
-		}
+		std::string response = ":" + m_nickname + " PRIVMSG " + target + " :" + message + "\r\n";
+		if (!_server.send_to_client(target, response))
+			throw std::invalid_argument("401 " + m_nickname + " " + target + " :No such nick/channel");
 	}
 }
 

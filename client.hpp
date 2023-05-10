@@ -28,7 +28,7 @@ class Client {
 		void join_parser(const std::string&, std::map<std::string, std::string> &);
 		bool is_valid_key(Channel*, const std::string&);
 		bool is_invited(const Channel*, const std::string&);
-		bool is_registered(const Channel*);
+		bool is_registered_channel(const Channel*);
 		void add_user(std::map<std::string, std::string>&);
 
 		void handle_invite(const std::string&);
@@ -44,9 +44,10 @@ class Client {
 		void kick_parser(const std::string&, std::map<std::string, std::string>&) const;
 		void kick_user(std::map<std::string, std::string>&, const std::map<std::string, Channel*>&, const std::map<int, Client*>&);
 
+		void handle_ping(const std::string&);
+		void handle_cap(const std::string& args);
 		void handle_topic(const std::string&);
-
-		void handle_privmsg(const std::string& arg);
+		void handle_privmsg(const std::string&);
 
 		typedef void (Client::*CommandHandler)(const std::string&);
 		std::map <std::string, CommandHandler> m_commands;
