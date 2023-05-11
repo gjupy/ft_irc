@@ -26,9 +26,6 @@ Client::Client(int fd, Server& server) : m_fd(fd), m_is_registered(false), _serv
 	m_commands["MODE"] = &Client::handle_mode;
 	m_commands["PRIVMSG"] = &Client::handle_privmsg;
 	m_commands["EXIT"] = &Client::handle_exit;
-	// m_commands["PING"] = &Client::handle_ping;
-	// m_commands["CAP"] = &Client::handle_cap;
-	// m_commands["WHO"] = &Client::handle_who;
 }
 
 const std::string& Client::get_nickname() const {
@@ -86,24 +83,6 @@ bool Client::is_registered_channel(const Channel* channel)
 			return (true);
 	}
 	return (false);
-}
-
-void Client::handle_ping(const std::string& args)
-{
-	if (args.size() < 1) {
-		// Send an error message to the client.
-		_server.send_to_client(m_nickname, "461 " + m_nickname + "\r\n");
-		return;
-	}
-	// Send a PONG response to the client.
-	_server.send_to_client(m_nickname, "PONG " + m_nickname + " 127.0.0.1" + "\r\n");
-}
-
-void Client::handle_cap(const std::string& args)
-{
-	std::cout << "CAP: " << args << std::endl;
-	// (void)args;
-	return;
 }
 
 bool are_remain_args(std::istringstream& iss)
@@ -513,7 +492,7 @@ void Client::handle_mode(const std::string& buffer)
 			}
 			else
 				input_channel->set_operator(mode_param, take);
-			handle_privmsg(input_channel->get_name() + " : " + mode_param + " was made " + mode[0] + "o by " + m_nickname);
+			handle_privmsg(input_channel->get_name() + ": " + mode_param + " was made " + mode[0] + "o by " + m_nickname);
 			break ;
 		case ('l'):
 			if (mode_param.empty())
@@ -534,7 +513,7 @@ void Client::handle_mode(const std::string& buffer)
 				input_channel->set_user_limit(0);
 			break ;
 		default:
-			throw std::invalid_argument("472 " + m_nickname + ": " + mode[1] + ": is unknown mode char to me for " + channel_name);
+			throw std::invalid_argument("472 " + mode + ": is unknown mode to me for " + channel_name);
 			break ;
 	}
 }
@@ -571,7 +550,7 @@ void Client::kick_user(std::map<std::string, std::string>& channels_to_nick, con
 		if (input_client == NULL)
 			throw std::invalid_argument("406 " + m_nickname + ": " + it->second + ": There was no such nickname");
 		if (!is_member(input_channel->get_registered(), it->second))
-			throw std::invalid_argument(" 441" + m_nickname + ": " + it->second + ": " + it->first + ": They aren't on that channel");
+			throw std::invalid_argument("441 " + m_nickname + ": " + it->second + ": " + it->first + ": They aren't on that channel");
 		if (!is_operator(*input_channel, m_nickname))
 			throw std::invalid_argument("482 " + m_nickname + ": " + it->first + ": You're not channel operator");
 		handle_privmsg(it->second + " you were kicked out of channel " + it->first + "\r\n");
@@ -618,8 +597,6 @@ void Client::handle_topic(const std::string& buffer)
 	Channel* input_channel = find_channel(channels, channel_name);
 	if (input_channel == NULL)
 		throw std::invalid_argument("403 " + m_nickname + ": " + channel_name + ": No such channel");
-	if (input_channel->get_topic_restriciton() && !is_operator(*input_channel, m_nickname))
-		throw std::invalid_argument("482 " + m_nickname + ": " + channel_name + ": You're not channel operator");
 	iss >> topic_name;
 	if (topic_name.empty())
 	{
@@ -627,49 +604,12 @@ void Client::handle_topic(const std::string& buffer)
 		if (topic.empty())
 			throw std::invalid_argument("331 " + m_nickname + ": " + channel_name + ": No topic is set");
 		else
-			_server.send_to_client(m_nickname, "332 " + m_nickname + ": " + channel_name + " : " + topic + std::string("\r\n"));
+			_server.send_to_client(m_nickname, "332 " + m_nickname + ": " + channel_name + ": topic: " + topic + std::string("\r\n"));
 	}
+	else if (input_channel->get_topic_restriciton() && !is_operator(*input_channel, m_nickname))
+		throw std::invalid_argument("482 " + m_nickname + ": " + channel_name + ": You're not channel operator");
 	else if (topic_name == "\"\"" || topic_name == "\'\'") // if topic input is empty
 		input_channel->set_topic("");	// set topic to empty (delete topic)
 	else
 		input_channel->set_topic(topic_name); // set new topic
-}
-
-
-void Client::handle_who(const std::string& buffer)
-{
-	std::string							channel_name, o_parameter;
-	std::istringstream					iss(buffer);
-	iss >> channel_name >> o_parameter;
-
-	if (channel_name.empty())
-	{
-		const std::map<int, Client *> clients = _server.get_clients();
-		for (std::map<int, Client*>::const_iterator it_clients = clients.begin(); it_clients != clients.end(); ++it_clients)
-			_server.send_to_client(m_nickname, "352" + m_nickname + " * " + it_clients->second->get_username() + " * ft_irc " + it_clients->second->get_nickname() + " H :0 " +  "REAL\r\n");
-	}
-	else if (o_parameter.empty())
-	{
-		Channel *channel = find_channel(_server.get_channels(), channel_name);
-		if (channel == NULL)
-			throw std::invalid_argument("403 " + m_nickname + " " + channel_name + " :No such channel");
-		const std::set<Client*>& registered = channel->get_registered();
-		// maybe erase the first character of channel_name
-		for (std::set<Client*>::const_iterator it_registered = registered.begin(); it_registered != registered.end(); ++it_registered)
-			_server.send_to_client(m_nickname, "352 " + m_nickname + " " + channel_name + " " + (*it_registered)->get_username() + " * ft_irc " + (*it_registered)->get_nickname() + " H :0 " +  "REAL\r\n");
-	}
-	else if (o_parameter == "o")
-	{
-		Channel *channel = find_channel(_server.get_channels(), channel_name);
-		if (channel == NULL)
-			throw std::invalid_argument("403 " + m_nickname + " " + channel_name + " :No such channel");
-		const std::set<std::string> operators = channel->get_operators();
-		// maybe erase the first character of channel_name
-		for (std::set<std::string>::const_iterator it_operators = operators.begin(); it_operators != operators.end(); ++it_operators)
-		{
-			Client *client = find_client(_server.get_clients(), *it_operators);
-			_server.send_to_client(m_nickname, "352 " + m_nickname + " " + channel_name + " " + client->get_username() + " * ft_irc " + client->get_nickname() + " G :0 " +  "REAL\r\n");
-		}
-	}
-	_server.send_to_client(m_nickname, "315 * :" + m_nickname + "\r\n");
 }

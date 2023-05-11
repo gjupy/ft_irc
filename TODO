@@ -1,8 +1,3 @@
-- USER with more than 1 param shouldnt work
-
-- no command should work with not authenticated
-
-- DICK: PRIVMSG: you left channel #BROS
-  404 DICK #BROS :Cannot send to channel
-
 - delete m_nickname before the error msgs
+
+- handle to many param in every mode case and other commands also
