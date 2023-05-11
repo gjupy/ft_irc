@@ -2,6 +2,11 @@
 #ifndef CLIENT_H
 #define CLIENT_H
 
+# define PURPLE "\033[0;35m"
+# define GREEN "\033[0;32m"
+# define RESET "\033[0m"
+# define RED "\033[31m"
+
 #include <string>
 #include <map>
 #include "Channel.hpp"
@@ -48,9 +53,6 @@ class Client {
 		void kick_parser(const std::string&, std::map<std::string, std::string>&) const;
 		void kick_user(std::map<std::string, std::string>&, const std::map<std::string, Channel*>&, const std::map<int, Client*>&);
 
-		void handle_ping(const std::string&);
-		void handle_cap(const std::string&);
-		void handle_who(const std::string&);
 		void handle_topic(const std::string&);
 		void handle_privmsg(const std::string&);
 		void handle_exit(const std::string&);
@@ -66,10 +68,6 @@ class Client {
 		const std::string& get_nickname() const;
 		const std::string& get_username() const;
 		std::string& get_buffer();
-		int get_fd() const
-		{
-			return m_fd;
-		}
 
 		void parse_command(const std::string &command);
 
