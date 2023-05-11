@@ -156,7 +156,7 @@ void Channel::set_operator(const std::string& some_operator, int action)
 	else
 	{
 		if (it_operators == _operators.end())
-			throw std::invalid_argument("user is not an operator");
+			return ;
 		_operators.erase(it_operators);
 	}
 }
