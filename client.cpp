@@ -7,8 +7,15 @@
 #include <exception>
 #include <stdio.h>
 
-Client::Client(int fd, Server& server) : m_fd(fd), m_is_registered(false), _server(server), m_nickname("*"), m_username(""), m_authenticated(false), buffer("")
+int Client::unregistered_count = 0;
+
+Client::Client(int fd, Server& server) : m_fd(fd), m_is_registered(false), _server(server), m_username(""), m_authenticated(false), buffer("")
 {
+	unregistered_count++;
+	std::ostringstream oss;
+	oss << "unregistered_" << unregistered_count;
+	m_nickname = oss.str();
+
 	m_commands["PASS"] = &Client::handle_pass;
 	m_commands["NICK"] = &Client::handle_nick;
 	m_commands["USER"] = &Client::handle_user;
@@ -122,9 +129,9 @@ void Client::handle_exit(const std::string& buffer)
 		throw std::invalid_argument("403 " + m_nickname + ": " + channel_name + ": No such channel");
 	if (!is_member(channel->get_registered(), m_nickname))
 		throw std::invalid_argument("441 " + m_nickname + ": " + channel_name + ": Your aren't on that channel");
-	channel->erase_user(m_nickname);
 	handle_privmsg(m_nickname + " you left channel " + channel_name + "\r\n");
 	handle_privmsg(channel_name + " " + m_nickname + " left channel " + channel_name + "\r\n");
+	channel->erase_user(m_nickname);
 	if (channel->get_registered().size() == 0)
 		_server.erase_channel(channel_name);
 }
@@ -202,6 +209,9 @@ keys are assigned to the channels in the order they are written
 */
 void Client::handle_join(const std::string& buffer)
 {
+	if (!m_is_registered)
+		throw std::invalid_argument("451 " + m_nickname + ": Please register first");
+
 	std::map<std::string, std::string>	channels_to_keys;
 	try
 	{
@@ -240,19 +250,19 @@ void Client::parse_command(const std::string &command) {
 		}
 	}
 	std::cerr << "Error\n" << "invalid input\n";
-	_server.send_to_client(m_nickname, "421 " + m_nickname + " " + cmd + ": Unknown command\r\n");
+	_server.send_to_client(m_nickname, "421 " + cmd + ": Unknown command\r\n");
 }
 
 void Client::handle_pass(const std::string &args) {
 	if (m_authenticated)
-		throw std::invalid_argument("462 " + m_nickname + ": You are already registered");
+		throw std::invalid_argument("462 : You are already registered");
 
 	std::string arg;
 	std::istringstream iss(args);
 	iss >> arg;
 
-	if (arg != _server.get_password())
-		throw std::invalid_argument("464 " + m_nickname + " :Password incorrect");
+	if (arg != _server.get_password() || are_remain_args(iss))
+		throw std::invalid_argument("464 :Password incorrect");
 
 	m_authenticated = true;
 	std::cout << "Client " << m_fd << " authenticated" << std::endl;
@@ -270,21 +280,19 @@ bool Client::username_exists(const std::string &username) const
 
 void Client::handle_user(const std::string &args) {
 	if (!m_authenticated)
-		throw std::invalid_argument("451 " + m_nickname + ": Please provide a server password using PASS command");
+		throw std::invalid_argument("451 : Please provide a server password using PASS command");
 	if (!m_username.empty())
-		throw std::invalid_argument("462 " + m_nickname + ": Unauthorized command (already registered)");
-	if (m_username == "*" || args.empty())
-		throw std::invalid_argument("461 " + m_nickname + ": USER: Not enough parameters");
+		throw std::invalid_argument("462 : Unauthorized command (already registered)");
 	if (username_exists(args))
-		throw std::invalid_argument("433 " + m_nickname + ": " + args + ": This username is already in use");
+		throw std::invalid_argument("433 : " + args + ": This username is already in use");
 
 	std::istringstream iss(args);
 	std::string arg;
 
-	if (!(iss >> arg))
-		throw std::invalid_argument("461 " + m_nickname);
+	if (args.empty() || !(iss >> arg) || are_remain_args(iss))
+		throw std::invalid_argument("461 : USER: Not enough parameters");
 	if (arg[0] == '#' || arg == "*")
-		throw std::invalid_argument("438 " + m_nickname + " " + arg + ": Erroneous username");
+		throw std::invalid_argument("438 " + arg + ": Erroneous username");
 	m_username = arg;
 	std::cout << "Client " << m_fd << " set username to: " << m_username << std::endl;
 }
@@ -301,18 +309,18 @@ bool Client::nickname_exists(const std::string &nickname) const
 
 void Client::handle_nick(const std::string &args) {
 	if (!m_authenticated || m_username.empty())
-		throw std::invalid_argument("451 " + m_nickname + ": You need to register using PASS and USER commands");
-	if (!m_nickname.empty() && m_nickname != "*")
-		throw std::invalid_argument("462 " + m_nickname + ": Unauthorized command (already registered)");
+		throw std::invalid_argument("451 : You need to register using PASS and USER commands");
+	if (!m_nickname.empty() && m_nickname.substr(0, 13) != "unregistered_")
+		throw std::invalid_argument("462 : Unauthorized command (already registered)");
 	if (nickname_exists(args) || args == m_username)
-		throw std::invalid_argument("433 " + m_nickname + " " + args + ": Nickname is already in use");
+		throw std::invalid_argument("433 " + args + ": Nickname is already in use");
 
 	std::string arg;
 	std::istringstream iss(args);
-	if (!(iss >> arg))
-		throw std::invalid_argument("461 NICK: Not enough parameters" );
+	if (!(iss >> arg) || are_remain_args(iss))
+		throw std::invalid_argument("461 : NICK: Not enough parameters");
 	if (arg[0] == '#')
-		throw std::invalid_argument("432 " + m_nickname + " " + arg + ": Erroneous nickname");
+		throw std::invalid_argument("432 " + arg + ": Erroneous nickname");
 	m_nickname = arg;
 	m_is_registered = true;
 	std::cout << "Client " << m_fd << " set nickname to: " << m_nickname << std::endl;
@@ -322,7 +330,7 @@ void Client::handle_nick(const std::string &args) {
 
 void Client::handle_privmsg(const std::string& args) {
 	if (!m_is_registered)
-		throw std::invalid_argument("666 " + m_nickname + ": Please set both USER and NICK before using other commands");
+		throw std::invalid_argument("451 " + m_nickname + ": Please set both USER and NICK before using other commands");
 
 	std::string target, message;
 	std::istringstream iss(args);
@@ -330,9 +338,12 @@ void Client::handle_privmsg(const std::string& args) {
 		throw std::invalid_argument("461 " + m_nickname + ": PRIVMSG: Not enough parameters: target missing");
 	if (!std::getline(iss, message))
 		throw std::invalid_argument("461 " + m_nickname + ": PRIVMSG: Not enough parameters: message missing");
+	if (are_remain_args(iss))
+		throw std::invalid_argument("461 " + m_nickname + ": PRIVMSG: Too many parameters");
 
 	Channel *channel = find_channel(_server.get_channels(), target);
-	if (channel) {
+	if (channel)
+	{
 		const std::set<Client*>& registered_clients = channel->get_registered();
 		if (is_registered_channel(channel)) {
 			for (std::set<Client*>::iterator it = registered_clients.begin(); it != registered_clients.end(); ++it) {
@@ -406,6 +417,9 @@ void Client::invite_client(Client& client, Channel& channel)
 
 void Client::handle_invite(const std::string& buffer)
 {
+	if (!m_is_registered)
+		throw std::invalid_argument("451 " + m_nickname + ": Please register first");
+
 	std::istringstream	iss(buffer);
 	std::string nickname;
 	std::string channel_name;
@@ -435,6 +449,9 @@ void Client::handle_invite(const std::string& buffer)
 
 void Client::handle_mode(const std::string& buffer)
 {
+	if (!m_is_registered)
+		throw std::invalid_argument("451 " + m_nickname + ": Please register first");
+
 	const std::map<std::string, Channel*>& channels = _server.get_channels();
 	std::istringstream	iss(buffer);
 	std::string channel_name;
@@ -557,9 +574,9 @@ void Client::kick_user(std::map<std::string, std::string>& channels_to_nick, con
 			throw std::invalid_argument(" 441" + m_nickname + ": " + it->second + ": " + it->first + ": They aren't on that channel");
 		if (!is_operator(*input_channel, m_nickname))
 			throw std::invalid_argument("482 " + m_nickname + ": " + it->first + ": You're not channel operator");
-		input_channel->erase_user(it->second);
 		handle_privmsg(it->second + " you were kicked out of channel " + it->first + "\r\n");
 		handle_privmsg(it->first + " " + it->second + " got kicked out of channel " + it->first + "\r\n");
+		input_channel->erase_user(it->second);
 		if (input_channel->get_registered().size() == 0)
 			_server.erase_channel(it->first);
 	}
@@ -567,6 +584,9 @@ void Client::kick_user(std::map<std::string, std::string>& channels_to_nick, con
 
 void Client::handle_kick(const std::string& buffer)
 {
+	if (!m_is_registered)
+		throw std::invalid_argument("451 " + m_nickname + ": Please register first");
+
 	std::map<std::string, std::string> channels_to_nicks;
 	try
 	{
@@ -588,6 +608,8 @@ void Client::handle_topic(const std::string& buffer)
 	std::istringstream					iss(buffer);
 	iss >> channel_name;
 
+	if (!m_is_registered)
+		throw std::invalid_argument("451 " + m_nickname + ": Please register first");
 	// handle if there are more args than it should
 	if (channel_name.empty())
 		throw std::invalid_argument("461 " + m_nickname + ": TOPIC: Not enough parameters");

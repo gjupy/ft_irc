@@ -19,6 +19,7 @@ class Client {
 		std::string	m_username;
 		bool m_authenticated;
 		std::string buffer;
+		static int unregistered_count;
 
 		void handle_pass(const std::string&);
 		void handle_nick(const std::string&);
