@@ -6,7 +6,7 @@
 /*   By: gjupy <gjupy@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/04/26 15:48:02 by gjupy             #+#    #+#             */
-/*   Updated: 2023/04/28 17:06:01 by gjupy            ###   ########.fr       */
+/*   Updated: 2023/05/11 17:20:09 by gjupy            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -101,7 +101,7 @@ void Server::accept_client(int server_fd) {
 }
 
 void Server::handle_client_data(size_t i) {
-	char buf[512];
+	char buf[1024];
 	ssize_t recv_len = recv(m_poll_fds[i].fd, buf, sizeof(buf) - 1, 0);
 	buf[recv_len] = '\0';
 
@@ -147,10 +147,11 @@ void Server::handle_client_recv_error(size_t i) {
 	}
 }
 
-bool Server::send_to_client(const std::string &target_nickname, const std::string &message) {
-	// Check if the target client exists
+bool Server::send_to_client(const std::string &target_nickname, const std::string &message)
+{
 	for (std::map<int, Client*>::iterator it = m_clients.begin(); it != m_clients.end(); ++it) {
-		if (it->second->get_nickname() == target_nickname) {
+		if (it->second->get_nickname() == target_nickname)
+		{
 			int target_fd = it->first;
 			if (send(target_fd, message.c_str(), message.size(), 0) == -1) {
 				std::cerr << "Error: Unable to send message to client " << target_fd << std::endl;

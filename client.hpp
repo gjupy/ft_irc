@@ -22,7 +22,10 @@ class Client {
 
 		void handle_pass(const std::string&);
 		void handle_nick(const std::string&);
+
 		void handle_user(const std::string&);
+		bool username_exists(const std::string &username) const;
+		bool nickname_exists(const std::string &nickname) const;
 
 		void handle_join(const std::string&);
 		void join_parser(const std::string&, std::map<std::string, std::string> &);
@@ -45,9 +48,11 @@ class Client {
 		void kick_user(std::map<std::string, std::string>&, const std::map<std::string, Channel*>&, const std::map<int, Client*>&);
 
 		void handle_ping(const std::string&);
-		void handle_cap(const std::string& args);
+		void handle_cap(const std::string&);
+		void handle_who(const std::string&);
 		void handle_topic(const std::string&);
 		void handle_privmsg(const std::string&);
+		void handle_exit(const std::string&);
 
 		typedef void (Client::*CommandHandler)(const std::string&);
 		std::map <std::string, CommandHandler> m_commands;
@@ -58,11 +63,15 @@ class Client {
 		Client& operator=(const Client& rhs);
 
 		const std::string& get_nickname() const;
+		const std::string& get_username() const;
 		std::string& get_buffer();
+		int get_fd() const
+		{
+			return m_fd;
+		}
 
 		void parse_command(const std::string &command);
 
-		const std::string	get_username() const;
 };
 
 #include "server.hpp"
