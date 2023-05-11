@@ -125,6 +125,8 @@ void Client::handle_exit(const std::string& buffer)
 	channel->erase_user(m_nickname);
 	handle_privmsg(m_nickname + " you left channel " + channel_name + "\r\n");
 	handle_privmsg(channel_name + " " + m_nickname + " left channel " + channel_name + "\r\n");
+	if (channel->get_registered().size() == 0)
+		_server.erase_channel(channel_name);
 }
 
 void Client::add_user(std::map<std::string, std::string> &channels_to_keys)
@@ -308,7 +310,7 @@ void Client::handle_nick(const std::string &args) {
 	std::string arg;
 	std::istringstream iss(args);
 	if (!(iss >> arg))
-		throw std::invalid_argument("461 " + m_nickname);
+		throw std::invalid_argument("461 NICK: Not enough parameters" );
 	if (arg[0] == '#')
 		throw std::invalid_argument("432 " + m_nickname + " " + arg + ": Erroneous nickname");
 	m_nickname = arg;
@@ -558,6 +560,8 @@ void Client::kick_user(std::map<std::string, std::string>& channels_to_nick, con
 		input_channel->erase_user(it->second);
 		handle_privmsg(it->second + " you were kicked out of channel " + it->first + "\r\n");
 		handle_privmsg(it->first + " " + it->second + " got kicked out of channel " + it->first + "\r\n");
+		if (input_channel->get_registered().size() == 0)
+			_server.erase_channel(it->first);
 	}
 }
 

@@ -6,7 +6,7 @@
 /*   By: gjupy <gjupy@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/04/26 15:48:02 by gjupy             #+#    #+#             */
-/*   Updated: 2023/05/11 17:20:09 by gjupy            ###   ########.fr       */
+/*   Updated: 2023/05/11 18:05:32 by gjupy            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -43,10 +43,23 @@ Server::~Server()
 		m_clients.erase(m_poll_fds[i].fd);
 		close(m_poll_fds[i].fd);
 	}
-	std::map<std::string, Channel*>::iterator ite = m_channel.end();
-	for (std::map<std::string, Channel*>::iterator it = m_channel.begin(); it != ite; it++)
+	for (std::map<std::string, Channel*>::iterator it = m_channel.begin(); it != m_channel.end(); it++)
 		delete it->second;
 	m_channel.clear();
+}
+
+void Server::erase_channel(const std::string& name)
+{
+	std::cout << "Deleting channel " << name << std::endl;
+	for (std::map<std::string, Channel*>::iterator it = m_channel.begin(); it != m_channel.end(); it++)
+	{
+		if (it->first == name)
+		{
+			delete it->second;
+			m_channel.erase(it);
+			return ;
+		}
+	}
 }
 
 Server& Server::operator=(const Server& rhs)
