@@ -1,2 +1,8 @@
-- it shouldnt be possible to register again (set nickname usw)
-- send message to channel
+- USER with more than 1 param shouldnt work
+
+- no command should work with not authenticated
+
+- DICK: PRIVMSG: you left channel #BROS
+  404 DICK #BROS :Cannot send to channel
+
+- delete m_nickname before the error msgs

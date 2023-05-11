@@ -6,7 +6,7 @@
 /*   By: gjupy <gjupy@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/04/26 15:47:19 by gjupy             #+#    #+#             */
-/*   Updated: 2023/05/05 17:58:52 by gjupy            ###   ########.fr       */
+/*   Updated: 2023/05/11 17:54:34 by gjupy            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -61,6 +61,7 @@ class Server {
 		void run();
 
 		void add_new_channel(Channel*);
+		void erase_channel(const std::string&);
 };
 
 #include "client.hpp"
