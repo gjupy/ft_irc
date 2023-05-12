@@ -6,6 +6,7 @@
 # define GREEN "\033[0;32m"
 # define RESET "\033[0m"
 # define RED "\033[31m"
+# define BLUE "\033[34m"
 
 #include <string>
 #include <map>
@@ -56,6 +57,7 @@ class Client {
 		void handle_topic(const std::string&);
 		void handle_privmsg(const std::string&);
 		void handle_exit(const std::string&);
+		void handle_quit(const std::string&);
 
 		typedef void (Client::*CommandHandler)(const std::string&);
 		std::map <std::string, CommandHandler> m_commands;
@@ -63,6 +65,7 @@ class Client {
 	public:
 		Client(int fd, Server& server);
 		Client(const Client& src);
+		~Client();
 		Client& operator=(const Client& rhs);
 
 		const std::string& get_nickname() const;

@@ -28,6 +28,16 @@ Client::Client(int fd, Server& server) : m_fd(fd), m_is_registered(false), _serv
 	m_commands["EXIT"] = &Client::handle_exit;
 }
 
+Client::~Client()
+{
+	unregistered_count--;
+	for (std::map<std::string, Channel*>::const_iterator it = _server.get_channels().begin(); it != _server.get_channels().end(); ++it)
+	{
+		if (is_registered_channel(it->second))
+			handle_exit(it->first);
+	}
+}
+
 const std::string& Client::get_nickname() const {
 	return m_nickname;
 }
@@ -99,13 +109,14 @@ void Client::handle_exit(const std::string& buffer)
 {
 	if (!m_is_registered)
 		throw std::invalid_argument(RED"451 You have not registered to the server\r\n"RESET);
-
 	std::string							channel_name;
 	std::istringstream					iss(buffer);
 
 	iss >> channel_name;
-	if (channel_name.empty() || are_remain_args(iss))
+	if (channel_name.empty())
 		throw std::invalid_argument(RED"461 EXIT: Not enough parameters"RESET);
+	if (are_remain_args(iss))
+		throw std::invalid_argument(RED"461 EXIT: Too many parameters"RESET);
 	Channel *channel = find_channel(_server.get_channels(), channel_name);
 	if (channel == NULL)
 		throw std::invalid_argument(RED"403 " + channel_name + ": No such channel"RESET);
@@ -154,8 +165,10 @@ void Client::join_parser(const std::string& buffer, std::map<std::string, std::s
 	std::istringstream					iss(buffer);
 	iss >> channel_list >> key_list;
 
-	if (channel_list.empty() || are_remain_args(iss))
+	if (channel_list.empty())
 		throw std::invalid_argument(RED"461 JOIN: Not enough parameters"RESET);
+	if (are_remain_args(iss))
+		throw std::invalid_argument(RED"461 JOIN: Too many parameters"RESET);
 	std::istringstream channel_stream(channel_list);
 	std::istringstream key_stream(key_list);
 	std::string channel, key;
@@ -244,7 +257,9 @@ void Client::handle_pass(const std::string &args)
 	std::istringstream iss(args);
 	iss >> arg;
 
-	if (arg != _server.get_password() || are_remain_args(iss))
+	if (are_remain_args(iss))
+		throw std::invalid_argument(RED"461 PASS: Too many parameters"RESET);
+	if (arg != _server.get_password())
 		throw std::invalid_argument(RED"464 Password incorrect"RESET);
 
 	m_authenticated = true;
@@ -275,8 +290,10 @@ void Client::handle_user(const std::string &args)
 	std::istringstream iss(args);
 	std::string arg;
 
-	if (args.empty() || !(iss >> arg) || are_remain_args(iss))
+	if (args.empty() || !(iss >> arg))
 		throw std::invalid_argument(RED"461 USER: Not enough parameters"RESET);
+	if (are_remain_args(iss))
+		throw std::invalid_argument(RED"461 USER: Too many parameters"RESET);
 	if (arg[0] == '#' || arg == "*")
 		throw std::invalid_argument(RED"438 " + arg + ": Erroneous username"RESET);
 	m_username = arg;
@@ -287,6 +304,7 @@ bool Client::nickname_exists(const std::string &nickname) const
 {
 	for (std::map<int, Client*>::const_iterator it = _server.get_clients().begin(); it != _server.get_clients().end(); ++it)
 	{
+		std::cout << it->second->get_nickname() << std::endl;
 		if (it->second->get_nickname() == nickname)
 			return (true);
 	}
@@ -298,13 +316,15 @@ void Client::handle_nick(const std::string &args) {
 		throw std::invalid_argument(RED"451 You need to register using PASS and USER commands"RESET);
 	if (!m_nickname.empty() && m_nickname.substr(0, 13) != "unregistered_")
 		throw std::invalid_argument(RED"462 Unauthorized command (already registered)"RESET);
-	if (nickname_exists(args) || args == m_username)
-		throw std::invalid_argument(RED"433 " + args + ": Nickname is already in use"RESET);
 
 	std::string arg;
 	std::istringstream iss(args);
-	if (!(iss >> arg) || are_remain_args(iss))
+	if (!(iss >> arg))
 		throw std::invalid_argument(RED"461 NICK: Not enough parameters"RESET);
+	if (are_remain_args(iss))
+		throw std::invalid_argument(RED"461 NICK: Too many parameters"RESET);
+	if (nickname_exists(args) || args == m_username)
+		throw std::invalid_argument(RED"433 " + args + ": Nickname is already in use"RESET);
 	if (arg[0] == '#')
 		throw std::invalid_argument(RED"432 " + arg + ": Erroneous nickname"RESET);
 	m_nickname = arg;
@@ -325,8 +345,6 @@ void Client::handle_privmsg(const std::string& args)
 		throw std::invalid_argument(RED"461 PRIVMSG: Not enough parameters: target missing"RESET);
 	if (!std::getline(iss, message))
 		throw std::invalid_argument(RED"461 PRIVMSG: Not enough parameters: message missing"RESET);
-	if (are_remain_args(iss))
-		throw std::invalid_argument(RED"461 PRIVMSG: Too many parameters"RESET);
 
 	Channel *channel = find_channel(_server.get_channels(), target);
 	if (channel)
@@ -340,7 +358,7 @@ void Client::handle_privmsg(const std::string& args)
 				if (client->get_nickname() != m_nickname)
 				{
 					std::string response = m_nickname + ": " + target + ": " + message + "\r\n";
-					_server.send_to_client(client->get_nickname(), response);
+					_server.send_to_client(client->get_nickname(), BLUE"" + response + ""RESET);
 				}
 			}
 		}
@@ -350,7 +368,7 @@ void Client::handle_privmsg(const std::string& args)
 	else
 	{
 		std::string response = m_nickname + ": " + message + "\r\n";
-		if (!_server.send_to_client(target, response))
+		if (!_server.send_to_client(target, PURPLE"" + response + ""RESET))
 			throw std::invalid_argument(RED"401 " + target + ": No such nick/channel"RESET);
 	}
 }
@@ -415,8 +433,10 @@ void Client::handle_invite(const std::string& buffer)
 	std::string channel_name;
 
 	iss >> nickname >> channel_name;
-	if (nickname.empty() || channel_name.empty() || are_remain_args(iss))
+	if (nickname.empty() || channel_name.empty())
 		throw std::invalid_argument(RED"461 INVITE: Not enough parameters"RESET);
+	if (are_remain_args(iss))
+		throw std::invalid_argument(RED"461 INVITE: Too many parameters"RESET);
 	const std::map<std::string, Channel*>& channels = _server.get_channels();
 	Channel* input_channel = find_channel(channels, channel_name);
 	if (input_channel == NULL)
@@ -537,8 +557,6 @@ void Client::kick_parser(const std::string& buffer, std::map<std::string, std::s
 
 	if (channel_list.empty())
 		throw std::invalid_argument(RED"461 KICK: Not enough parameters"RESET);
-	if (are_remain_args(iss))
-		throw std::invalid_argument(RED"461 KICK: Too many parameters"RESET);
 	std::istringstream channel_stream(channel_list);
 	std::istringstream nick_stream(nick_list);
 	std::string channel, nick;
@@ -549,7 +567,7 @@ void Client::kick_parser(const std::string& buffer, std::map<std::string, std::s
 		channels_to_nicks[channel] = nick;
 	}
 	if (std::getline(nick_stream, nick, ','))
-		throw std::invalid_argument(RED"461 KICK: Not enough parameters"RESET);
+		throw std::invalid_argument(RED"461 KICK: Too many parameters"RESET);
 }
 
 void Client::kick_user(std::map<std::string, std::string>& channels_to_nick, const std::map<std::string, Channel*>& channels, const std::map<int, Client*>& clients)
@@ -591,25 +609,24 @@ void Client::handle_kick(const std::string& buffer)
 	const std::map<std::string, Channel*>& channels = _server.get_channels();
 	const std::map<int, Client*>& clients = _server.get_clients();
 	kick_user(channels_to_nicks, channels, clients);
-	// channel ceases to exist when the last user leaves it
 }
 
 void Client::handle_topic(const std::string& buffer)
 {
 	std::string							channel_name, topic_name;
 	std::istringstream					iss(buffer);
-	iss >> channel_name;
+	iss >> channel_name >> topic_name;
 
 	if (!m_is_registered)
 		throw std::invalid_argument(RED"451 You have not registered to the server"RESET);
-	// handle if there are more args than it should
+	if (are_remain_args(iss))
+		throw std::invalid_argument(RED"461 TOPIC: Too many parameters"RESET);
 	if (channel_name.empty())
 		throw std::invalid_argument(RED"461 TOPIC: Not enough parameters"RESET);
 	const std::map<std::string, Channel*>& channels = _server.get_channels();
 	Channel* input_channel = find_channel(channels, channel_name);
 	if (input_channel == NULL)
 		throw std::invalid_argument(RED"403 " + channel_name + ": No such channel"RESET);
-	iss >> topic_name;
 	if (topic_name.empty())
 	{
 		const std::string& topic = input_channel->get_topic();

@@ -6,7 +6,7 @@
 /*   By: gjupy <gjupy@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/04/26 15:48:02 by gjupy             #+#    #+#             */
-/*   Updated: 2023/05/11 18:05:32 by gjupy            ###   ########.fr       */
+/*   Updated: 2023/05/12 18:53:28 by gjupy            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -86,6 +86,11 @@ int Server::set_nonblocking(int sockfd) {
 	return 0;
 }
 
+const std::vector<pollfd>& Server::get_poll_fds() const
+{
+	return (m_poll_fds);
+}
+
 void Server::accept_client(int server_fd) {
 	sockaddr_in client_addr;
 	socklen_t client_addr_len = sizeof(client_addr);
@@ -140,12 +145,13 @@ void Server::handle_client_data(size_t i) {
 }
 
 void Server::handle_client_disconnection(size_t i) {
-	delete m_clients[m_poll_fds[i].fd];
-	m_clients.erase(m_poll_fds[i].fd);
-	std::cout << "Client disconnected: " << m_poll_fds[i].fd << std::endl;
-	close(m_poll_fds[i].fd);
-	m_poll_fds.erase(m_poll_fds.begin() + i);
-	--i; // Decrement the index to account for the removed element
+    int client_fd = m_poll_fds[i].fd;
+    delete m_clients[client_fd];
+    std::cout << "Client disconnected: " << client_fd << std::endl;
+    close(client_fd); // Close the socket file descriptor
+    m_poll_fds.erase(m_poll_fds.begin() + i);
+    m_clients.erase(client_fd);
+    --i; // Decrement the index to account for the removed element
 }
 
 void Server::handle_client_recv_error(size_t i) {
