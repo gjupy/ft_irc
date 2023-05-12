@@ -52,16 +52,18 @@ def receive_responses():
                 if match:
                     channel_name = match.group(1)[:-2]
                     print(f"""
-     __          __  _
-     \ \        / / | |
-      \ \  /\  / /__| | ___ ___  _ __ ___   ___
-       \ \/  \/ / _ \ |/ __/ _ \| '_ ` _ \ / _ \\
-        \  /\  /  __/ | (_| (_) | | | | | |  __/
-         \/  \/ \___|_|\___\___/|_| |_| |_|\___|
-
-
-        Welcome to the #{channel_name} channel! Enjoy your stay.
-    """)
+    _______________________________________________________________
+   |                                                               |
+      Welcome to #{channel_name}!
+   |                                                               |
+   |  Here are a few guidelines to help you have a great time:     |
+   |                                                               |
+   |  1. Please be respectful to all members.                      |
+   |  2. Avoid discussing sensitive topics.                        |
+   |  3. If you need help, don't hesitate to ask.                  |
+   |  4. Have fun and enjoy your stay!                             |
+   |_______________________________________________________________|
+        """)
         except socket.error:
             break
 
