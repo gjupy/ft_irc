@@ -523,7 +523,7 @@ void Client::handle_mode(const std::string& buffer)
 			}
 			else
 				input_channel->set_operator(mode_param, take);
-			handle_privmsg(input_channel->get_name() + ": " + mode_param + " was made " + mode[0] + "o by " + m_nickname);
+			handle_privmsg(input_channel->get_name() + " " + mode_param + " was made " + mode[0] + "o by " + m_nickname);
 			break ;
 		case ('l'):
 			if (mode_param.empty())
