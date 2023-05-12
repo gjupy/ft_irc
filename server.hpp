@@ -6,7 +6,7 @@
 /*   By: gjupy <gjupy@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/04/26 15:47:19 by gjupy             #+#    #+#             */
-/*   Updated: 2023/05/12 18:40:23 by gjupy            ###   ########.fr       */
+/*   Updated: 2023/05/12 21:07:01 by gjupy            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -44,6 +44,8 @@ class Server {
 
 		std::map<int, Client*>			m_clients;
 		std::map<std::string, Channel*>	m_channel;
+
+
 
 	public:
 		Server(int port, const std::string& password);

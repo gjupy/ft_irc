@@ -172,8 +172,9 @@ void	Channel::erase_user(const std::string& nickname)
 	{
 		if ((*it)->get_nickname() == nickname)
 		{
-			delete(*it);
+			std::cout << "Erasing user from channel's registered list" << std::endl;
 			_registered.erase(it);
+			delete(*it);
 			break ;
 		}
 	}
@@ -181,8 +182,9 @@ void	Channel::erase_user(const std::string& nickname)
 	{
 		if ((*it)->get_nickname() == nickname)
 		{
-			delete(*it);
+			std::cout << "Erasing user from channel's invited list" << std::endl;
 			_invited.erase(it);
+			delete(*it);
 			break ;
 		}
 	}

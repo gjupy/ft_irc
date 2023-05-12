@@ -6,7 +6,7 @@
 /*   By: gjupy <gjupy@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/04/26 15:48:02 by gjupy             #+#    #+#             */
-/*   Updated: 2023/05/12 18:53:28 by gjupy            ###   ########.fr       */
+/*   Updated: 2023/05/12 22:48:18 by gjupy            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -30,6 +30,8 @@ accepting client connections, and handling client messages. It uses the poll() f
 asynchronous I/O to manage multiple client connections.
 */
 
+bool running;
+
 Server::Server(int port, const std::string& password)
 	: m_port(port), m_password(password) {}
 
@@ -50,13 +52,12 @@ Server::~Server()
 
 void Server::erase_channel(const std::string& name)
 {
-	std::cout << "Deleting channel " << name << std::endl;
 	for (std::map<std::string, Channel*>::iterator it = m_channel.begin(); it != m_channel.end(); it++)
 	{
 		if (it->first == name)
 		{
-			delete it->second;
 			m_channel.erase(it);
+			delete it->second;
 			return ;
 		}
 	}
@@ -82,7 +83,6 @@ int Server::set_nonblocking(int sockfd) {
 		std::cerr << "Error: Unable to set socket to non-blocking mode." << std::endl;
 		return -1;
 	}
-
 	return 0;
 }
 
@@ -147,7 +147,6 @@ void Server::handle_client_data(size_t i) {
 void Server::handle_client_disconnection(size_t i) {
     int client_fd = m_poll_fds[i].fd;
     delete m_clients[client_fd];
-    std::cout << "Client disconnected: " << client_fd << std::endl;
     close(client_fd); // Close the socket file descriptor
     m_poll_fds.erase(m_poll_fds.begin() + i);
     m_clients.erase(client_fd);
@@ -181,6 +180,12 @@ bool Server::send_to_client(const std::string &target_nickname, const std::strin
 	}
 	// Target client not found
 	return false;
+}
+
+void signal_handler(int sig)
+{
+	printf("Signal %d received, exiting IRC_trash ...\n", sig);
+	running = false;
 }
 
 void Server::run() {
@@ -230,15 +235,16 @@ void Server::run() {
 
 	m_poll_fds.push_back(server_pollfd);
 
+	signal(SIGINT, signal_handler);
+	running = true;
 	// Main loop
-	while (true) {
+	while (running)
+	{
 		int poll_result = poll(&m_poll_fds[0], m_poll_fds.size(), -1);
 
 		if (poll_result == -1) {
-			std::cerr << "Error: Poll failed." << std::endl;
 			break;
 		}
-
 		for (size_t i = 0; i < m_poll_fds.size(); ++i) {
 			if (m_poll_fds[i].revents & POLLIN) {
 				if (m_poll_fds[i].fd == server_fd) {

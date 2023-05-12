@@ -47,10 +47,10 @@ def receive_responses():
             print(resp, end='', flush=True)
 
             # Check if the response indicates a successful channel join
-            if resp.startswith("you created channel") or resp.startswith("you joined channel"):
+            if resp.startswith("\033[34myou created channel") or resp.startswith("\033[34myou joined channel"):
                 match = re.search(r"you created channel #([^']+)", resp)
                 if match:
-                    channel_name = match.group(1)[:-2]
+                    channel_name = match.group(1)[:-9]
                     print(f"""
     _______________________________________________________________
    |                                                               |
