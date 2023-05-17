@@ -6,7 +6,7 @@
 /*   By: gjupy <gjupy@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/04/26 15:48:02 by gjupy             #+#    #+#             */
-/*   Updated: 2023/05/12 22:48:18 by gjupy            ###   ########.fr       */
+/*   Updated: 2023/05/16 20:13:11 by gjupy            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -241,10 +241,10 @@ void Server::run() {
 	while (running)
 	{
 		int poll_result = poll(&m_poll_fds[0], m_poll_fds.size(), -1);
-
 		if (poll_result == -1) {
 			break;
 		}
+
 		for (size_t i = 0; i < m_poll_fds.size(); ++i) {
 			if (m_poll_fds[i].revents & POLLIN) {
 				if (m_poll_fds[i].fd == server_fd) {
