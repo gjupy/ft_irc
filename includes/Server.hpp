@@ -1,28 +1,22 @@
 #pragma once
 
-#include "Client.hpp"
 #include "Channel.hpp"
+#include "Client.hpp"
 #include <arpa/inet.h>
 #include <cstdlib>
 #include <cstring>
 #include <errno.h>
 #include <fcntl.h>
 #include <iostream>
+#include <map>
 #include <netinet/in.h>
 #include <poll.h>
 #include <signal.h>
+#include <string>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <vector>
-#include <map>
-#include <netinet/in.h>
-#include <poll.h>
-#include <string>
-#include <vector>
-
-// Names the Server for response-generation
-#define SERVERNAME "idiotic.chat"
 
 // Names the Host for response-generation
 #define HOST "localhost"

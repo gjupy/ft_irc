@@ -10,15 +10,15 @@ class Server;
 class Channel;
 class Client;
 
-#include "Client.hpp"
 #include "Channel.hpp"
+#include "Client.hpp"
 #include "Server.hpp"
 #include <exception>
 #include <iostream>
-#include <sstream>
-#include <stdio.h>
 #include <map>
 #include <set>
+#include <sstream>
+#include <stdio.h>
 #include <string>
 
 typedef std::map<int, Client *> map_clients;

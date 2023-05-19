@@ -1,9 +1,9 @@
 #pragma once
 
 #include "Client.hpp"
-#include <set>
 #include <exception>
 #include <iostream>
+#include <set>
 #include <string>
 #include <vector>
 

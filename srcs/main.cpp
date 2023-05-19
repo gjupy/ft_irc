@@ -1,6 +1,4 @@
 #include "../includes/Server.hpp"
-#include <iostream>
-#include <sstream>
 
 int main(int argc, char *argv[]) {
   if (argc != 3) {
