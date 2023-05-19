@@ -50,7 +50,7 @@ def receive_responses():
             if resp.startswith("\033[34myou created channel") or resp.startswith("\033[34myou joined channel"):
                 match = re.search(r"you created channel #([^']+)", resp)
                 if match:
-                    channel_name = match.group(1)[:-9]
+                    channel_name = match.group(1)[:-2]
                     print(f"""
     _______________________________________________________________
    |                                                               |
