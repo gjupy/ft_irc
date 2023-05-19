@@ -5,7 +5,7 @@ Simple IRC Server based on the RFC (mainly 2812) written in C++.
 
 It does not support server-to-server communication. You can use it with **netcat** (for now).
 
-# Run
+## Run
 
 Do `make` and then run :
 
@@ -26,7 +26,7 @@ This following list of commands are handled on our server:
 - PRIVMSG
 ```
 
-## Handled modes :
+## Handled modes
 
 The following list of modes are handled by the server:
 
@@ -42,7 +42,7 @@ for channels :
     - l : user limit
 ```
 
-# DOCS
+## DOCS
 
 - [RFC2811](https://datatracker.ietf.org/doc/html/rfc2811)
 - [RFC2812](https://datatracker.ietf.org/doc/html/rfc2812)
