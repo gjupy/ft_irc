@@ -21,6 +21,9 @@
 // Names the Host for response-generation
 #define HOST "localhost"
 
+// Names the Server for response-generation
+#define SERVER "irc_trash"
+
 class Client;
 class Channel;
 
@@ -31,7 +34,7 @@ class Server {
 
 private:
   int set_nonblocking(int sockfd);
-  void accept_client(int server_fd);
+  void accept_client(int server_fd, size_t i);
 
   void handle_client_data(size_t i);
   void handle_client_recv_error(size_t i);
@@ -63,6 +66,7 @@ public:
 
   void add_new_channel(Channel *);
   void erase_channel(const std::string &);
+
   int prepare_socket(int &, struct sockaddr_in &);
   void initialize_poll_fd(pollfd &, int &);
 };

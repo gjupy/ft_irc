@@ -60,7 +60,7 @@ int Server::set_nonblocking(int sockfd) {
 
 const std::vector<pollfd> &Server::get_poll_fds() const { return (m_poll_fds); }
 
-void Server::accept_client(int server_fd) {
+void Server::accept_client(int server_fd, size_t i) {
   sockaddr_in client_addr;
   socklen_t client_addr_len = sizeof(client_addr);
   int client_fd = accept(server_fd, (sockaddr *)&client_addr, &client_addr_len);
@@ -84,7 +84,7 @@ void Server::accept_client(int server_fd) {
       m_poll_fds.push_back(client_pollfd);
 
       m_clients[client_fd] = new Client(
-          client_fd, *this); // Use the 'new' keyword to create a Client object
+          client_fd, *this, i); // Use the 'new' keyword to create a Client object
     }
   }
 }
@@ -223,7 +223,7 @@ void Server::run() {
       if (m_poll_fds[i].revents & POLLIN) {
         if (m_poll_fds[i].fd == server_fd) {
           // New client connection
-          accept_client(server_fd);
+          accept_client(server_fd, i);
         } else {
           // Client data available
           handle_client_data(i);

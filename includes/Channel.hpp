@@ -42,6 +42,7 @@ public:
 
   const client_set &get_invited() const;
   const client_set &get_registered() const;
+  std::string get_registered_list() const;
   const std::string &get_key() const;
   const std::string &get_name() const;
   const std::string &get_topic() const;

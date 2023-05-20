@@ -10,6 +10,7 @@ Channel::Channel(const std::string &name, std::string &key,
   _operators.insert(c_operator);
   _invite_only = false;
   _topic_restriciton = false;
+  _topic = "";
   _user_limit = 0;
 }
 
@@ -120,6 +121,16 @@ void Channel::erase_user(const std::string &nickname) {
     }
   }
   set_operator(nickname, take);
+}
+
+std::string Channel::get_registered_list() const {
+  std::string registered_list;
+  for (client_set::iterator it = _registered.begin(); it != _registered.end();
+       ++it) {
+    registered_list += (*it)->get_nickname();
+    registered_list += " ";
+  }
+  return (registered_list);
 }
 
 const std::string Channel::get_modes() {

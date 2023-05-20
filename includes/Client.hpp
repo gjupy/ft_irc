@@ -29,8 +29,9 @@ typedef std::set<Client *> client_set;
 class Client {
 private:
   int m_fd;
-  bool m_is_registered;
   Server &_server;
+  size_t _poll_fds_arr_pos;
+  bool m_is_registered;
   std::string m_nickname;
   std::string m_username;
   bool m_authenticated;
@@ -39,6 +40,8 @@ private:
 
   void handle_pass(const std::string &);
   void handle_nick(const std::string &);
+  void handle_capabilities(const std::string &);
+  void handle_ping(const std::string &);
 
   void handle_user(const std::string &);
   bool username_exists(const std::string &username) const;
@@ -66,14 +69,17 @@ private:
 
   void handle_topic(const std::string &);
   void handle_privmsg(const std::string &);
-  void handle_exit(const std::string &);
   void handle_quit(const std::string &);
+
+  void send_to_channel(const Channel &channel, const std::string &message);
+
+  void leave_channel(const std::string &channel_name);
 
   typedef void (Client::*CommandHandler)(const std::string &);
   std::map<std::string, CommandHandler> m_commands;
 
 public:
-  Client(int fd, Server &server);
+  Client(int fd, Server &server, size_t poll_fds_arr_pos);
   Client(const Client &src);
   ~Client();
   Client &operator=(const Client &rhs);
