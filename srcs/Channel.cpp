@@ -61,8 +61,6 @@ const client_set &Channel::get_invited() const { return (_invited); }
 const client_set &Channel::get_registered() const { return (_registered); }
 
 void Channel::set_key(const std::string &key) {
-  if (key.empty())
-    throw std::invalid_argument("unvalid key");
   _key = key;
   _key_needed = true;
 }

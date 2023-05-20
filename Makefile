@@ -5,7 +5,7 @@ NAME = ircserv
 SRC = srcs/main.cpp \
 	  srcs/Client.cpp \
 	  srcs/Server.cpp \
-	  srcs/Channel.cpp
+	  srcs/Channel.cpp \
 
 OBJ = $(SRC:.cpp=.o)
 
