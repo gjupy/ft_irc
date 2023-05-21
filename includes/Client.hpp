@@ -71,6 +71,7 @@ private:
   void kick_user(map_str_str &, const map_channels &, const map_clients &);
   void send_to_channel(const Channel &channel, const std::string &message);
   void leave_channel(const std::string &channel_name);
+  bool are_remain_args(std::istringstream &);
 
 public:
   Client(int fd, Server &server, size_t poll_fds_arr_pos);

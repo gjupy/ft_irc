@@ -38,6 +38,7 @@ private:
   std::vector<pollfd> _poll_fds;
   map_clients _clients;
   map_channels _channels;
+  std::string _err_msg;
 
   /* handling connections */
   int set_nonblocking(int sockfd);
@@ -46,7 +47,6 @@ private:
   void handle_client_recv_error(size_t i);
   int prepare_socket(int &, struct sockaddr_in &);
   void initialize_poll_fd(pollfd &, int &);
-  std::string _err_msg;
 
 public:
   Server(int port, const std::string &password);

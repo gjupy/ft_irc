@@ -12,6 +12,8 @@ bool running;
 Server::Server(int port, const std::string &password)
     : _port(port), _server_pass(password) {}
 
+Server::Server(const Server &src) { *this = src; }
+
 Server::~Server() {
   // Clean up
   for (size_t i = 0; i < _poll_fds.size(); ++i)
@@ -33,10 +35,13 @@ Server &Server::operator=(const Server &rhs) {
   _poll_fds = rhs._poll_fds;
   _clients = rhs._clients;
   _channels = rhs._channels;
+  _err_msg = rhs._err_msg;
   return (*this);
 }
 
-Server::Server(const Server &src) { *this = src; }
+/* ************************************************************************** */
+/*                            HANDLING CONNECTIONS							              */
+/* ************************************************************************** */
 
 int Server::set_nonblocking(int sockfd) {
   if (fcntl(sockfd, F_SETFL, O_NONBLOCK) == -1) {
@@ -45,19 +50,6 @@ int Server::set_nonblocking(int sockfd) {
   }
   return 0;
 }
-
-void Server::erase_channel(const std::string &name) {
-  for (map_channels::iterator it = _channels.begin(); it != _channels.end();
-       it++) {
-    if (it->first == name) {
-      _channels.erase(it);
-      delete it->second;
-      return;
-    }
-  }
-}
-
-const std::vector<pollfd> &Server::get_poll_fds() const { return (_poll_fds); }
 
 void Server::accept_client(int server_fd, size_t i) {
   sockaddr_in client_addr;
@@ -115,15 +107,6 @@ void Server::handle_client_data(size_t i) {
   }
 }
 
-void Server::handle_client_disconnection(size_t i) {
-  int client_fd = _poll_fds[i].fd;
-  delete _clients[client_fd];
-  close(client_fd); // Close the socket file descriptor
-  _poll_fds.erase(_poll_fds.begin() + i);
-  _clients.erase(client_fd);
-  --i; // Decrement the index to account for the removed element
-}
-
 void Server::handle_client_recv_error(size_t i) {
   // No data available; non-blocking recv() returns -1 with errno set to EAGAIN
   // or EWOULDBLOCK
@@ -136,6 +119,33 @@ void Server::handle_client_recv_error(size_t i) {
     _poll_fds.erase(_poll_fds.begin() + i);
     --i; // Decrement the index to account for the removed element
   }
+}
+
+void Server::initialize_poll_fd(pollfd &server_pollfd, int &server_fd) {
+  server_pollfd.fd = server_fd;
+  server_pollfd.events = POLLIN;
+  server_pollfd.revents = 0;
+  _poll_fds.push_back(server_pollfd);
+}
+
+void Server::erase_channel(const std::string &name) {
+  for (map_channels::iterator it = _channels.begin(); it != _channels.end();
+       it++) {
+    if (it->first == name) {
+      _channels.erase(it);
+      delete it->second;
+      return;
+    }
+  }
+}
+
+void Server::handle_client_disconnection(size_t i) {
+  int client_fd = _poll_fds[i].fd;
+  delete _clients[client_fd];
+  close(client_fd); // Close the socket file descriptor
+  _poll_fds.erase(_poll_fds.begin() + i);
+  _clients.erase(client_fd);
+  --i; // Decrement the index to account for the removed element
 }
 
 bool Server::send_to_client(const std::string &target_nick,
@@ -193,13 +203,6 @@ int Server::prepare_socket(int &server_fd, struct sockaddr_in &server_addr) {
   return 0;
 }
 
-void Server::initialize_poll_fd(pollfd &server_pollfd, int &server_fd) {
-  server_pollfd.fd = server_fd;
-  server_pollfd.events = POLLIN;
-  server_pollfd.revents = 0;
-  _poll_fds.push_back(server_pollfd);
-}
-
 void Server::run() {
   int server_fd;
   struct sockaddr_in server_addr;
@@ -229,14 +232,20 @@ void Server::run() {
   }
 }
 
-const std::string Server::get_password() const { return (_server_pass); }
-
-const map_channels &Server::get_channels() const { return (_channels); }
-
 void Server::add_new_channel(Channel *new_channel) {
   _channels[new_channel->get_name()] = new_channel;
 }
 
+/* ************************************************************************** */
+/*                            GETTERS												                  */
+/* ************************************************************************** */
+
+const std::string Server::get_password() const { return (_server_pass); }
+
+const map_channels &Server::get_channels() const { return (_channels); }
+
 const std::map<int, Client *> &Server::get_clients() const {
   return (_clients);
 }
+
+const std::vector<pollfd> &Server::get_poll_fds() const { return (_poll_fds); }
