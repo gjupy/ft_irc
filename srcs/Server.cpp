@@ -113,7 +113,9 @@ void Server::handle_client_recv_error(size_t i) {
   if (errno != EAGAIN && errno != EWOULDBLOCK) {
     delete _clients[_poll_fds[i].fd];
     _clients.erase(_poll_fds[i].fd);
-    _err_msg = "Error: Failed to receive data from client (" + _poll_fds[i].fd +
+	std::stringstream ss;
+	ss << _poll_fds[i].fd;
+    _err_msg = "Error: Failed to receive data from client (" + ss.str() +
                std::string(").");
     close(_poll_fds[i].fd);
     _poll_fds.erase(_poll_fds.begin() + i);
