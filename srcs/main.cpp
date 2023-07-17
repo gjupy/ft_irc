@@ -9,14 +9,14 @@ void input_parser(int argc, char *argv[], int &port, std::string &password) {
   iss >> port;
   if (iss.fail() || port < 0 || port > 65535)
     throw std::invalid_argument("Invalid port number: " + std::string(argv[1]));
-
+  password = argv[2];
   if (password.empty())
     throw std::invalid_argument("Invalid password: empty");
 }
 
 int main(int argc, char *argv[]) {
   int port;
-  std::string password(argv[2]);
+  std::string password;
   try {
     input_parser(argc, argv, port, password);
   } catch (const std::invalid_argument &e) {
